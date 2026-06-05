@@ -145,22 +145,99 @@ const DOM = {
 
   todoCount: document.getElementById('todo-count'),
   progressCount: document.getElementById('progress-count'),
-  doneCount: document.getElementById('done-count')
+  doneCount: document.getElementById('done-count'),
+
+  // Auth gate + account panel
+  authOverlay: document.getElementById('auth-overlay'),
+  authGoogleBtn: document.getElementById('auth-google-btn'),
+  authForm: document.getElementById('auth-form'),
+  authEmail: document.getElementById('auth-email'),
+  authPassword: document.getElementById('auth-password'),
+  authMessage: document.getElementById('auth-message'),
+  authSubmitBtn: document.getElementById('auth-submit-btn'),
+  authToggleBtn: document.getElementById('auth-toggle-btn'),
+  authToggleText: document.getElementById('auth-toggle-text'),
+  accountPanel: document.getElementById('account-panel'),
+  accountEmail: document.getElementById('account-email'),
+  accountAvatar: document.getElementById('account-avatar'),
+  signoutBtn: document.getElementById('signout-btn')
 };
 
-// --- Initialization ---
-function init() {
-  loadData();
+// --- Cloud vs local mode ----------------------------------------------------
+// CLOUD = Supabase configured (keys present in config.js). When false, the app
+// runs exactly as before against localStorage, so it still works pre-setup.
+const CLOUD = !!(window.DB && window.DB.Auth.isConfigured());
+let authMode = 'signin'; // 'signin' | 'signup'
+let realtimeTimer = null;
+
+// Generate an id. Cloud needs valid UUIDs (uuid PK columns); crypto.randomUUID
+// works on HTTPS and localhost. Falls back to a timestamp id if unavailable.
+function genId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// --- Boot / initialization -------------------------------------------------
+// Wires up listeners once, then either gates behind auth (cloud) or runs
+// directly against localStorage (local fallback).
+function boot() {
   applyTheme();
   setupEventListeners();
+  setupPresetColorsPicker();
+  setupAuthListeners();
+
+  if (!CLOUD) {
+    // Local-only mode: behave exactly like the original app.
+    loadLocalData();
+    renderApp();
+    return;
+  }
+
+  // Cloud mode: show the auth gate (covers the app) until the session resolves.
+  DOM.authOverlay.hidden = false;
+  DB.Auth.onChange((session) => handleSession(session));
+  DB.Auth.getSession().then((session) => handleSession(session));
+}
+
+// Render the full UI pipeline from current state.
+function renderApp() {
   renderCategories();
   renderTasks();
   updateStats();
-  setupPresetColorsPicker();
 }
 
-// --- LocalStorage Operations ---
-function loadData() {
+// --- Auth session handling (cloud) ------------------------------------------
+let activeUserId = null; // guards against duplicate session events on load
+
+async function handleSession(session) {
+  if (session && session.user) {
+    // Already loaded for this user? (INITIAL_SESSION + getSession both fire.)
+    if (activeUserId === session.user.id) return;
+    activeUserId = session.user.id;
+
+    // Signed in.
+    DOM.authOverlay.hidden = true;
+    DOM.accountPanel.hidden = false;
+    const email = session.user.email || '';
+    DOM.accountEmail.textContent = email;
+    DOM.accountAvatar.textContent = (email[0] || '?').toUpperCase();
+
+    await loadCloudData();
+    renderApp();
+    subscribeRealtime();
+  } else {
+    // Signed out.
+    activeUserId = null;
+    DB.unsubscribe();
+    DOM.accountPanel.hidden = true;
+    DOM.authOverlay.hidden = false;
+    state.tasks = [];
+    state.categories = [];
+  }
+}
+
+// --- Data loading -----------------------------------------------------------
+function loadLocalData() {
   // Migrate from old apex_* keys if checkmate_* keys don't exist yet
   if (!localStorage.getItem('checkmate_tasks') && localStorage.getItem('apex_tasks')) {
     localStorage.setItem('checkmate_tasks', localStorage.getItem('apex_tasks'));
@@ -180,11 +257,97 @@ function loadData() {
   state.activeView = savedView ? savedView : 'board';
 }
 
-function saveData() {
-  localStorage.setItem('checkmate_tasks', JSON.stringify(state.tasks));
-  localStorage.setItem('checkmate_categories', JSON.stringify(state.categories));
+async function loadCloudData() {
+  // Theme/view stay per-device in localStorage.
+  state.theme = localStorage.getItem('checkmate_theme') || 'dark';
+  state.activeView = localStorage.getItem('checkmate_view') || 'board';
+  applyTheme();
+
+  try {
+    let data = await DB.fetchAll();
+    // One-time migration of this browser's localStorage tasks into the account.
+    const migrated = await DB.migrateLocalStorageIfNeeded(data.categories);
+    if (migrated) data = await DB.fetchAll();
+    state.categories = data.categories;
+    state.tasks = data.tasks;
+  } catch (err) {
+    console.error('Failed to load cloud data:', err);
+    alert('Could not load your tasks. Check your connection and refresh.');
+    state.categories = [];
+    state.tasks = [];
+  }
+}
+
+// Reload from cloud (used by realtime). View-only refresh, no writes.
+async function reloadFromCloud() {
+  try {
+    const data = await DB.fetchAll();
+    state.categories = data.categories;
+    state.tasks = data.tasks;
+    renderApp();
+  } catch (err) {
+    console.error('Realtime reload failed:', err);
+  }
+}
+
+// --- Persistence wrappers ---------------------------------------------------
+// In cloud mode these make granular DB writes; in local mode they fall through
+// to a full localStorage save. Mutation functions call these instead of saving
+// directly, so the same code path works in both modes.
+function saveUIPrefs() {
   localStorage.setItem('checkmate_theme', state.theme);
   localStorage.setItem('checkmate_view', state.activeView);
+}
+
+function saveLocal() {
+  localStorage.setItem('checkmate_tasks', JSON.stringify(state.tasks));
+  localStorage.setItem('checkmate_categories', JSON.stringify(state.categories));
+  saveUIPrefs();
+}
+
+// Kept for UI-pref-only call sites (theme/view changes).
+function saveData() {
+  if (CLOUD) saveUIPrefs();
+  else saveLocal();
+}
+
+function persistTaskUpsert(task) {
+  if (!CLOUD) return saveLocal();
+  DB.upsertTask(task).catch(err => console.error('Save task failed:', err));
+}
+function persistTaskDelete(id) {
+  if (!CLOUD) return saveLocal();
+  DB.deleteTask(id).catch(err => console.error('Delete task failed:', err));
+}
+function persistTasksBulk(tasks) {
+  if (!CLOUD) return saveLocal();
+  DB.upsertTasks(tasks).catch(err => console.error('Save tasks failed:', err));
+}
+function persistCategoryInsert(cat) {
+  if (!CLOUD) return saveLocal();
+  DB.insertCategory(cat).catch(err => console.error('Add category failed:', err));
+}
+function persistCategoryUpdate(cat) {
+  if (!CLOUD) return saveLocal();
+  DB.updateCategory(cat).catch(err => console.error('Update category failed:', err));
+}
+function persistCategoryDelete(id) {
+  if (!CLOUD) return saveLocal();
+  DB.deleteCategory(id).catch(err => console.error('Delete category failed:', err));
+}
+function persistCategoriesReorder(cats) {
+  if (!CLOUD) return saveLocal();
+  DB.reorderCategories(cats).catch(err => console.error('Reorder categories failed:', err));
+}
+
+// --- Realtime ---------------------------------------------------------------
+function subscribeRealtime() {
+  if (!CLOUD) return;
+  DB.subscribe(() => {
+    // Debounce: collapse bursts of change events into one reload.
+    clearTimeout(realtimeTimer);
+    realtimeTimer = setTimeout(reloadFromCloud, 250);
+  });
 }
 
 // --- Theme Implementation ---
@@ -231,9 +394,10 @@ function setupPresetColorsPicker() {
 
 // --- Category Creation & Filtering ---
 function createCategory(name, color) {
-  const id = `cat-${Date.now()}`;
-  state.categories.push({ id, name, color });
-  saveData();
+  const id = genId();
+  const cat = { id, name, color, order: state.categories.length };
+  state.categories.push(cat);
+  persistCategoryInsert(cat);
   renderCategories();
 }
 
@@ -244,17 +408,18 @@ function deleteCategory(categoryId) {
     if (!confirm('This category is used in active tasks. Deleting it will assign those tasks to "General" Category. Do you want to proceed?')) {
       return;
     }
-    // Re-assign tasks to general category or default
+    // Detach tasks from the deleted category (rendered as "General").
+    // In cloud mode the FK ON DELETE SET NULL does this server-side too.
     state.tasks = state.tasks.map(t => {
       if (t.category === categoryId) {
-        return { ...t, category: 'cat-general' };
+        return { ...t, category: null };
       }
       return t;
     });
   }
 
   state.categories = state.categories.filter(c => c.id !== categoryId);
-  
+
   // Handle filter state resets
   if (state.selectedSidebarCategory === categoryId) {
     state.selectedSidebarCategory = 'all';
@@ -264,7 +429,7 @@ function deleteCategory(categoryId) {
     DOM.taskFilterCategory.value = 'all';
   }
 
-  saveData();
+  persistCategoryDelete(categoryId);
   renderCategories();
   renderTasks();
   updateStats();
@@ -309,12 +474,13 @@ function renderModalSubtasks() {
 // --- Task CRUD Operations ---
 function createOrUpdateTask(taskData) {
   const taskId = DOM.taskFormId.value;
-  
+  let saved;
+
   if (taskId) {
     // UPDATE
     state.tasks = state.tasks.map(t => {
       if (t.id === taskId) {
-        return {
+        saved = {
           ...t,
           title: taskData.title,
           description: taskData.description,
@@ -324,13 +490,14 @@ function createOrUpdateTask(taskData) {
           status: taskData.status,
           subtasks: taskData.subtasks
         };
+        return saved;
       }
       return t;
     });
   } else {
     // CREATE
-    const newTask = {
-      id: `task-${Date.now()}`,
+    saved = {
+      id: genId(),
       title: taskData.title,
       description: taskData.description,
       category: taskData.category,
@@ -340,10 +507,10 @@ function createOrUpdateTask(taskData) {
       subtasks: taskData.subtasks,
       order: getNextOrderValue(taskData.status, taskData.priority)
     };
-    state.tasks.push(newTask);
+    state.tasks.push(saved);
   }
 
-  saveData();
+  if (saved) persistTaskUpsert(saved);
   renderTasks();
   updateStats();
   closeModal(DOM.taskModal);
@@ -358,7 +525,7 @@ function getNextOrderValue(status, priority) {
 function deleteTask(id) {
   if (confirm('Are you sure you want to permanently delete this task?')) {
     state.tasks = state.tasks.filter(t => t.id !== id);
-    saveData();
+    persistTaskDelete(id);
     renderTasks();
     updateStats();
   }
@@ -388,7 +555,7 @@ function toggleSubtaskState(taskId, subtaskId, isChecked) {
     return t;
   });
 
-  saveData();
+  persistTaskUpsert(state.tasks.find(t => t.id === taskId));
   renderTasks();
   updateStats();
 }
@@ -400,7 +567,7 @@ function changeTaskStatus(taskId, newStatus) {
     }
     return t;
   });
-  saveData();
+  persistTaskUpsert(state.tasks.find(t => t.id === taskId));
   renderTasks();
   updateStats();
 }
@@ -500,9 +667,10 @@ function renderCategories() {
       const cats = [...state.categories];
       const [moved] = cats.splice(dragSrcCatIndex, 1);
       cats.splice(idx, 0, moved);
+      cats.forEach((c, i) => { c.order = i; });
       state.categories = cats;
       dragSrcCatIndex = null;
-      saveData();
+      persistCategoriesReorder(cats);
       renderCategories();
     });
 
@@ -545,7 +713,7 @@ function renderCategories() {
   
   // Custom fallback General option just in case
   const generalOpt = document.createElement('option');
-  generalOpt.value = 'cat-general';
+  generalOpt.value = '';
   generalOpt.textContent = 'General';
   DOM.taskFormCategory.appendChild(generalOpt);
 
@@ -582,7 +750,7 @@ function openCategoryColorPicker(e, catId, currentColor) {
       state.categories = state.categories.map(c =>
         c.id === catId ? { ...c, color: btn.dataset.color } : c
       );
-      saveData();
+      persistCategoryUpdate(state.categories.find(c => c.id === catId));
       renderCategories();
       renderTasks();
       popover.remove();
@@ -600,7 +768,7 @@ function openCategoryColorPicker(e, catId, currentColor) {
 
 function renameCategory(id, newName) {
   state.categories = state.categories.map(c => c.id === id ? { ...c, name: newName } : c);
-  saveData();
+  persistCategoryUpdate(state.categories.find(c => c.id === id));
   renderCategories();
   renderTasks();
 }
@@ -788,18 +956,19 @@ function showQuickAddForm(cell) {
     if (title) {
       const priority = cell.dataset.priority;
       const status   = cell.dataset.status;
-      state.tasks.push({
-        id: `task-${Date.now()}`,
+      const newTask = {
+        id: genId(),
         title,
         description: '',
-        category: catSelect.value,
+        category: catSelect.value || null,
         priority,
         status,
         dueDate: '',
         subtasks: [],
         order: getNextOrderValue(status, priority)
-      });
-      saveData();
+      };
+      state.tasks.push(newTask);
+      persistTaskUpsert(newTask);
       updateStats();
     }
     renderTasks();
@@ -1068,7 +1237,7 @@ function openTaskModal(taskId = null) {
     DOM.taskFormDueDate.value = new Date().toISOString().split('T')[0];
     DOM.taskFormStatus.value = 'todo';
     DOM.taskFormPriority.value = 'medium';
-    DOM.taskFormCategory.value = state.categories.length > 0 ? state.categories[0].id : 'cat-general';
+    DOM.taskFormCategory.value = state.categories.length > 0 ? state.categories[0].id : '';
     
     state.tempSubtasks = [];
   }
@@ -1175,8 +1344,9 @@ function handleDrop(e) {
 
   // Re-normalize order numbers (0, 1, 2...)
   normalizeOrderNumbers();
-  
-  saveData();
+
+  // Drag can renumber many cells; persist all tasks to keep order in sync.
+  persistTasksBulk(state.tasks);
   renderTasks();
   updateStats();
 }
@@ -1311,6 +1481,65 @@ function setupEventListeners() {
   });
 }
 
+// --- Auth UI listeners (cloud) ----------------------------------------------
+function setupAuthListeners() {
+  if (!DOM.authForm) return;
+
+  // Google OAuth
+  DOM.authGoogleBtn.addEventListener('click', async () => {
+    setAuthMessage('');
+    const { error } = await DB.Auth.signInWithGoogle();
+    if (error) setAuthMessage(error.message);
+  });
+
+  // Toggle between sign-in and sign-up
+  DOM.authToggleBtn.addEventListener('click', () => {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    const signup = authMode === 'signup';
+    DOM.authSubmitBtn.textContent = signup ? 'Create Account' : 'Sign In';
+    DOM.authToggleText.textContent = signup ? 'Already have an account?' : 'New here?';
+    DOM.authToggleBtn.textContent = signup ? 'Sign in instead' : 'Create an account';
+    DOM.authPassword.autocomplete = signup ? 'new-password' : 'current-password';
+    setAuthMessage('');
+  });
+
+  // Email / password submit
+  DOM.authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = DOM.authEmail.value.trim();
+    const password = DOM.authPassword.value;
+    setAuthMessage('');
+    DOM.authSubmitBtn.disabled = true;
+
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await DB.Auth.signUp(email, password);
+        if (error) { setAuthMessage(error.message); }
+        else if (data.user && !data.session) {
+          setAuthMessage('Check your email to confirm your account, then sign in.', true);
+        }
+      } else {
+        const { error } = await DB.Auth.signInWithPassword(email, password);
+        if (error) setAuthMessage(error.message);
+      }
+    } catch (err) {
+      setAuthMessage(err.message || 'Something went wrong.');
+    } finally {
+      DOM.authSubmitBtn.disabled = false;
+    }
+  });
+
+  // Sign out
+  DOM.signoutBtn.addEventListener('click', async () => {
+    await DB.Auth.signOut();
+  });
+}
+
+function setAuthMessage(text, success = false) {
+  DOM.authMessage.textContent = text;
+  DOM.authMessage.classList.toggle('success', success);
+}
+
 // --- Utility Helpers ---
 function escapeHTML(str) {
   if (!str) return '';
@@ -1326,8 +1555,8 @@ function escapeHTML(str) {
 }
 
 // Run application!
-document.addEventListener('DOMContentLoaded', init);
-// Run init immediately if DOMContentLoaded has already fired
+document.addEventListener('DOMContentLoaded', boot);
+// Run immediately if DOMContentLoaded has already fired
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
-  init();
+  boot();
 }
