@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Checkmate — a premium glassmorphic task manager with a priority-status matrix board, drag-and-drop, category customisation, stats tracking, and a dynamic dark/light/system theme switcher.">
+  <title>Checkmate // Task Manager</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <!-- Remix Icons for sleek, modern iconography -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container" id="app">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand-section">
+          <div class="brand-logo">♔</div>
+          <h1 class="brand-title">Checkmate</h1>
+        </div>
+        
+        <ul class="nav-menu">
+          <li class="nav-item active" id="nav-board-view">
+            <button type="button" aria-label="View Tasks as Kanban Board">
+              <i class="ri-kanban-view"></i>
+              <span>Board View</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-list-view">
+            <button type="button" aria-label="View Tasks as Chronological List">
+              <i class="ri-list-check-2"></i>
+              <span>List View</span>
+            </button>
+          </li>
+        </ul>
+
+        <!-- Categories Section -->
+        <div class="categories-section">
+          <div class="section-label-container">
+            <span class="section-label">Categories</span>
+            <button type="button" class="add-category-btn" id="open-category-modal-btn" title="Add Custom Category" aria-label="Create new category">
+              <i class="ri-add-line"></i>
+            </button>
+          </div>
+          <ul class="category-list" id="sidebar-categories" role="list">
+            <!-- Dynamically populated categories -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- Theme Selector Panel -->
+      <div class="theme-selector">
+        <span class="section-label">Theme</span>
+        <div class="theme-switch-group">
+          <button type="button" class="theme-btn" id="theme-light-btn" title="Switch to Light Theme" aria-label="Light theme">
+            <i class="ri-sun-line"></i>
+          </button>
+          <button type="button" class="theme-btn" id="theme-dark-btn" title="Switch to Dark Theme" aria-label="Dark theme">
+            <i class="ri-moon-line"></i>
+          </button>
+          <button type="button" class="theme-btn" id="theme-system-btn" title="Switch to System Theme" aria-label="System theme">
+            <i class="ri-computer-line"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      
+      <!-- Single unified top bar -->
+      <div class="top-bar">
+
+        <!-- 1. Title + subtitle -->
+        <div class="banner-welcome">
+          <h2>Task Dashboard</h2>
+          <p>Stay productive! Focus on what matters.</p>
+        </div>
+
+        <!-- spacer pushes stats to center -->
+        <div class="top-bar-spacer"></div>
+
+        <!-- 2. Stats (centered) -->
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-radial-container">
+              <svg class="stat-radial-svg">
+                <circle class="stat-circle-bg" cx="27" cy="27" r="20"></circle>
+                <circle class="stat-circle-progress" id="progress-circle" cx="27" cy="27" r="20"></circle>
+              </svg>
+              <div class="stat-progress-text" id="progress-percentage-label">0%</div>
+            </div>
+            <div class="stat-details">
+              <span class="stat-value" id="stats-completion-fraction">0/0</span>
+              <span class="stat-label">Tasks Completed</span>
+            </div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-details">
+              <span class="stat-value" id="stats-active-count">0</span>
+              <span class="stat-label">In Progress</span>
+            </div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-details">
+              <span class="stat-value" id="stats-overdue-count" style="color: hsl(var(--priority-high-hue), 85%, 50%);">0</span>
+              <span class="stat-label">Overdue</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- spacer pushes controls to right -->
+        <div class="top-bar-spacer"></div>
+
+        <!-- 3. Search + category filter -->
+        <div class="header-search-filter">
+          <div class="search-box">
+            <i class="ri-search-line"></i>
+            <input type="text" id="task-search-input" placeholder="Search tasks by title..." aria-label="Search tasks">
+          </div>
+          <select id="task-filter-category" class="filter-select" aria-label="Filter tasks by category">
+            <option value="all">All Categories</option>
+          </select>
+        </div>
+
+        <div class="top-bar-divider"></div>
+
+        <!-- 4. View toggle -->
+        <div class="view-toggle-group">
+          <button type="button" class="view-btn active" id="view-board-btn" title="Kanban Board View" aria-label="Board view">
+            <i class="ri-grid-fill"></i>
+          </button>
+          <button type="button" class="view-btn" id="view-list-btn" title="List View" aria-label="List view">
+            <i class="ri-align-justify"></i>
+          </button>
+        </div>
+
+        <!-- 5. Add Task button -->
+        <button type="button" class="primary-btn" id="open-task-modal-btn" aria-label="Create new task">
+          <i class="ri-add-fill"></i>
+          <span>Add Task</span>
+        </button>
+
+      </div>
+
+      <!-- Workspace Body (Boards and Lists) -->
+      <section class="content-body" id="workspace-body">
+        
+        <!-- 2D Priority-Status Matrix Board View -->
+        <div class="board-view" id="workspace-board">
+          
+          <!-- Column Headers Row -->
+          <div class="matrix-header-row">
+            <div class="matrix-corner-cell">
+              <span class="matrix-corner-label">Priority / Status</span>
+            </div>
+            <div class="matrix-column-header">
+              <span class="column-title"><span class="column-dot" style="background-color: var(--primary);"></span>To Do</span>
+              <span class="column-count" id="todo-count">0</span>
+            </div>
+            <div class="matrix-column-header">
+              <span class="column-title"><span class="column-dot" style="background-color: var(--accent-cyan);"></span>In Progress</span>
+              <span class="column-count" id="progress-count">0</span>
+            </div>
+            <div class="matrix-column-header">
+              <span class="column-title"><span class="column-dot" style="background-color: rgb(var(--priority-low-hue));"></span>Completed</span>
+              <span class="column-count" id="done-count">0</span>
+            </div>
+          </div>
+
+          <!-- Row 1: High Priority -->
+          <div class="matrix-row" id="row-high">
+            <div class="matrix-row-label-cell priority-high-label">
+              <span class="matrix-row-label">High</span>
+              <span class="matrix-row-count" id="high-count">0</span>
+            </div>
+            <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="high" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="high" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="high" role="list"></div>
+          </div>
+
+          <!-- Row 2: Medium Priority -->
+          <div class="matrix-row" id="row-medium">
+            <div class="matrix-row-label-cell priority-medium-label">
+              <span class="matrix-row-label">Medium</span>
+              <span class="matrix-row-count" id="medium-count">0</span>
+            </div>
+            <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="medium" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="medium" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="medium" role="list"></div>
+          </div>
+
+          <!-- Row 3: Low Priority -->
+          <div class="matrix-row" id="row-low">
+            <div class="matrix-row-label-cell priority-low-label">
+              <span class="matrix-row-label">Low</span>
+              <span class="matrix-row-count" id="low-count">0</span>
+            </div>
+            <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="low" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="low" role="list"></div>
+            <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="low" role="list"></div>
+          </div>
+          
+        </div>
+
+        <!-- List View Workspace -->
+        <div class="list-view" id="workspace-list" style="display: none;" role="list">
+          <!-- Cards rendered dynamically as list rows -->
+        </div>
+
+      </section>
+    </main>
+
+  </div>
+
+  <!-- --- MODALS & DRAWERS --- -->
+
+  <!-- 1. Add / Edit Task Modal Dialog -->
+  <div class="modal-overlay" id="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 class="modal-title" id="task-modal-title">Create Task</h2>
+        <button type="button" class="modal-close" id="close-task-modal-btn" title="Close" aria-label="Close dialog">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+      <form id="task-form">
+        <div class="modal-body">
+          <input type="hidden" id="task-form-id" value="">
+          
+          <div class="form-group">
+            <label for="task-form-title">Task Title</label>
+            <input type="text" id="task-form-title" class="form-input" placeholder="What needs to be done?" required>
+          </div>
+
+          <div class="form-group">
+            <label for="task-form-desc">Description</label>
+            <textarea id="task-form-desc" class="form-textarea" placeholder="Add some notes..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-form-category">Category</label>
+              <select id="task-form-category" class="form-select" required>
+                <!-- Dynamically filled with options -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="task-form-priority">Priority</label>
+              <select id="task-form-priority" class="form-select">
+                <option value="low">Low Priority</option>
+                <option value="medium" selected>Medium Priority</option>
+                <option value="high">High Priority</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-form-dueDate">Due Date</label>
+              <input type="date" id="task-form-dueDate" class="form-input">
+            </div>
+            <div class="form-group">
+              <label for="task-form-status">Initial Status</label>
+              <select id="task-form-status" class="form-select">
+                <option value="todo" selected>To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="done">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Nested Subtasks Checklist Creator -->
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Subtasks</label>
+            <div class="modal-subtasks-container">
+              <div class="subtask-input-row">
+                <input type="text" id="subtask-add-input" class="subtask-add-input" placeholder="Add a subtask step..." aria-label="New subtask text">
+                <button type="button" class="btn-secondary-sm" id="subtask-add-btn">Add</button>
+              </div>
+              <ul class="modal-subtask-list" id="modal-subtask-list" role="list">
+                <!-- Checklist items to be rendered dynamically -->
+              </ul>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-text" id="cancel-task-form-btn">Cancel</button>
+          <button type="submit" class="btn-primary" id="save-task-form-btn">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Category Creator Modal -->
+  <div class="modal-overlay" id="category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+    <div class="modal-window" style="max-width: 420px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="category-modal-title">Manage Categories</h2>
+        <button type="button" class="modal-close" id="close-category-modal-btn" title="Close" aria-label="Close dialog">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+      <form id="category-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="category-form-name">Category Name</label>
+            <input type="text" id="category-form-name" class="form-input" placeholder="e.g. Work, Fitness, Health" required maxlength="15">
+          </div>
+
+          <div class="form-group">
+            <label>Category Color Theme</label>
+            <div class="color-picker-row" id="color-presets-row">
+              <!-- Dynamically rendered color dots -->
+            </div>
+            <input type="hidden" id="category-form-color" value="#6366f1">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-text" id="cancel-category-form-btn">Cancel</button>
+          <button type="submit" class="btn-primary">Create Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
