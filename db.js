@@ -208,6 +208,48 @@
   // fresh DB-generated category ids, then pushes everything up. Idempotent via
   // a per-user "migrated" flag in localStorage.
 
+  // Core import: remap old string category ids to DB ids (matching seeded ones
+  // by name, creating extras), then push tasks with fresh uuids. Shared by the
+  // auto-migration and the manual importData() path.
+  async function importPayload(localTasks, localCats, existingCategories) {
+    const idMap = {};
+    const byName = {};
+    existingCategories.forEach(c => { byName[c.name.toLowerCase()] = c.id; });
+
+    const catsToInsert = [];
+    (localCats || []).forEach((lc, i) => {
+      const match = byName[(lc.name || '').toLowerCase()];
+      if (match) {
+        idMap[lc.id] = match;
+      } else {
+        const newId = crypto.randomUUID();
+        idMap[lc.id] = newId;
+        byName[(lc.name || '').toLowerCase()] = newId;
+        catsToInsert.push({ id: newId, name: lc.name, color: lc.color || '#6366f1', order: existingCategories.length + i });
+      }
+    });
+
+    for (const c of catsToInsert) {
+      await insertCategory(c);
+    }
+
+    const tasksToInsert = (localTasks || []).map(t => ({
+      id: crypto.randomUUID(),
+      title: t.title,
+      description: t.description || '',
+      category: idMap[t.category] || null,
+      priority: t.priority || 'medium',
+      status: t.status || 'todo',
+      dueDate: t.dueDate || '',
+      subtasks: t.subtasks || [],
+      order: t.order || 0
+    }));
+
+    await upsertTasks(tasksToInsert);
+
+    return { categories: catsToInsert.length, tasks: tasksToInsert.length };
+  }
+
   async function migrateLocalStorageIfNeeded(existingCategories) {
     const flagKey = 'checkmate_migrated_' + currentUser.id;
     if (localStorage.getItem(flagKey)) return false;
@@ -225,45 +267,23 @@
       return false;
     }
 
-    // Map old category id -> new DB category id.
-    // Match local categories to the seeded ones by name; create any extras.
-    const idMap = {};
-    const byName = {};
-    existingCategories.forEach(c => { byName[c.name.toLowerCase()] = c.id; });
-
-    const catsToInsert = [];
-    localCats.forEach((lc, i) => {
-      const match = byName[(lc.name || '').toLowerCase()];
-      if (match) {
-        idMap[lc.id] = match;
-      } else {
-        const newId = crypto.randomUUID();
-        idMap[lc.id] = newId;
-        catsToInsert.push({ id: newId, name: lc.name, color: lc.color || '#6366f1', order: existingCategories.length + i });
-      }
-    });
-
-    for (const c of catsToInsert) {
-      await insertCategory(c);
-    }
-
-    // Remap + push tasks with fresh ids.
-    const tasksToInsert = localTasks.map(t => ({
-      id: crypto.randomUUID(),
-      title: t.title,
-      description: t.description || '',
-      category: idMap[t.category] || null,
-      priority: t.priority || 'medium',
-      status: t.status || 'todo',
-      dueDate: t.dueDate || '',
-      subtasks: t.subtasks || [],
-      order: t.order || 0
-    }));
-
-    await upsertTasks(tasksToInsert);
-
+    await importPayload(localTasks, localCats, existingCategories);
     localStorage.setItem(flagKey, '1');
     return true; // signal caller to re-fetch
+  }
+
+  // Manual import for data that lives on a DIFFERENT origin (e.g. your local
+  // preview vs. the Vercel app). Paste {tasks, categories} exported from the old
+  // origin. Run from the browser console while logged in:
+  //   await DB.importData({ tasks: [...], categories: [...] })
+  // then refresh.
+  async function importData(payload) {
+    if (!client || !currentUser) throw new Error('Not signed in.');
+    payload = payload || {};
+    const current = await fetchAll();
+    const result = await importPayload(payload.tasks || [], payload.categories || [], current.categories);
+    console.log(`Imported ${result.tasks} tasks and ${result.categories} new categories. Refresh to see them.`);
+    return result;
   }
 
   // --- expose --------------------------------------------------------------
@@ -280,6 +300,7 @@
     reorderCategories,
     subscribe,
     unsubscribe,
-    migrateLocalStorageIfNeeded
+    migrateLocalStorageIfNeeded,
+    importData
   };
 })();
