@@ -45,13 +45,13 @@ Email/password sign-up works immediately. Google needs steps 5–6.
 git add -A
 git commit -m "Add Supabase cloud sync"
 # create an empty repo on github.com first (e.g. "checkmate"), then:
-git remote add origin https://github.com/<your-username>/checkmate.git
+git remote add origin https://github.com/nishit-io/checkmate.git
 git push -u origin main
 ```
 
 1. Go to <https://vercel.com> → **Add New → Project** → import the `checkmate` repo.
 2. Framework preset: **Other**. Root directory: `./`. No build command. Output: `./`.
-3. **Deploy**. You get a URL like `https://checkmate-xxxx.vercel.app`.
+3. **Deploy**. Live deployment: <https://checkmate-eta-nine.vercel.app>
 
 ## 5. Enable Google sign-in
 
@@ -60,7 +60,7 @@ git push -u origin main
 3. **Credentials → Create credentials → OAuth client ID → Web application**.
 4. Under **Authorized redirect URIs** add (from Supabase → Authentication → Providers → Google):
    ```
-   https://<your-project-ref>.supabase.co/auth/v1/callback
+   https://cjblwyiayfuughypujla.supabase.co/auth/v1/callback
    ```
 5. Copy the **Client ID** and **Client secret**.
 6. In **Supabase → Authentication → Providers → Google**: enable it, paste Client ID + secret, save.
@@ -69,10 +69,10 @@ git push -u origin main
 
 **Supabase → Authentication → URL Configuration:**
 
-- **Site URL:** `https://checkmate-xxxx.vercel.app`
+- **Site URL:** `https://checkmate-eta-nine.vercel.app`
 - **Redirect URLs:** add both:
-  - `https://checkmate-xxxx.vercel.app`
-  - `http://localhost:3000` (or whatever you use locally)
+  - `https://checkmate-eta-nine.vercel.app`
+  - `http://localhost:8181` (or whatever local port you use)
 
 Without this, Google login will bounce back to the wrong place.
 
