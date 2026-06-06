@@ -160,7 +160,22 @@ const DOM = {
   accountPanel: document.getElementById('account-panel'),
   accountEmail: document.getElementById('account-email'),
   accountAvatar: document.getElementById('account-avatar'),
-  signoutBtn: document.getElementById('signout-btn')
+  signoutBtn: document.getElementById('signout-btn'),
+
+  // Mobile view: drawer, bottom nav, viewport toggle, board status tabs
+  sidebar: document.querySelector('aside.sidebar'),
+  sidebarScrim: document.getElementById('sidebar-scrim'),
+  mobileHamburgerBtn: document.getElementById('mobile-hamburger-btn'),
+  viewportToggleBtn: document.getElementById('viewport-toggle-btn'),
+  boardMobileTabs: document.getElementById('board-mobile-tabs'),
+  tabTodoCount: document.getElementById('tab-todo-count'),
+  tabProgressCount: document.getElementById('tab-progress-count'),
+  tabDoneCount: document.getElementById('tab-done-count'),
+  bottomNavBoard: document.getElementById('bottom-nav-board'),
+  bottomNavList: document.getElementById('bottom-nav-list'),
+  bottomNavAdd: document.getElementById('bottom-nav-add'),
+  bottomNavSearch: document.getElementById('bottom-nav-search'),
+  bottomNavMenu: document.getElementById('bottom-nav-menu')
 };
 
 // --- Cloud vs local mode ----------------------------------------------------
@@ -182,6 +197,7 @@ function genId() {
 // directly against localStorage (local fallback).
 function boot() {
   applyTheme();
+  applyViewport();
   setupEventListeners();
   setupPresetColorsPicker();
   setupAuthListeners();
@@ -266,7 +282,12 @@ async function loadCloudData() {
   try {
     let data = await DB.fetchAll();
     // One-time migration of this browser's localStorage tasks into the account.
-    const migrated = await DB.migrateLocalStorageIfNeeded(data.categories);
+    // Guard: only migrate into an EMPTY account. An account that already has
+    // tasks is established (e.g. the Vercel app) — never merge a different
+    // origin's local test data into it, or every new origin duplicates tasks.
+    const migrated = data.tasks.length === 0
+      ? await DB.migrateLocalStorageIfNeeded(data.categories)
+      : false;
     if (migrated) data = await DB.fetchAll();
     state.categories = data.categories;
     state.tasks = data.tasks;
@@ -373,6 +394,68 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
     applyTheme();
   }
 });
+
+// --- Mobile view ------------------------------------------------------------
+// Two ways the mobile layout activates:
+//   1. Real small screens (<=768px) via the media query below.
+//   2. The in-app preview toggle (forceMobile) so it can be tested on a laptop.
+// `mobile-mode` on <html> drives the layout; `mobile-frame` adds the phone
+// chrome only when forced on a wide screen.
+const MOBILE_MQ = window.matchMedia('(max-width: 768px)');
+let forceMobile = localStorage.getItem('checkmate_force_mobile') === '1';
+
+function applyViewport() {
+  const root = document.documentElement;
+  const realMobile = MOBILE_MQ.matches;
+  const mobile = forceMobile || realMobile;
+
+  root.classList.toggle('mobile-mode', mobile);
+  root.classList.toggle('mobile-frame', forceMobile && !realMobile);
+
+  if (DOM.viewportToggleBtn) {
+    DOM.viewportToggleBtn.setAttribute('aria-pressed', String(forceMobile));
+    const icon = DOM.viewportToggleBtn.querySelector('i');
+    if (icon) icon.className = forceMobile ? 'ri-computer-line' : 'ri-smartphone-line';
+    DOM.viewportToggleBtn.title = forceMobile ? 'Switch to desktop view' : 'Toggle mobile preview';
+  }
+
+  // Leaving mobile: make sure the drawer is closed.
+  if (!mobile) closeDrawer();
+}
+
+function toggleViewport() {
+  forceMobile = !forceMobile;
+  localStorage.setItem('checkmate_force_mobile', forceMobile ? '1' : '0');
+  applyViewport();
+}
+
+// Sidebar drawer (mobile) -----------------------------------------------------
+function openDrawer() {
+  DOM.sidebar.classList.add('drawer-open');
+  DOM.sidebarScrim.hidden = false;
+  // Force reflow so the opacity transition runs from hidden -> visible.
+  void DOM.sidebarScrim.offsetWidth;
+  DOM.sidebarScrim.classList.add('visible');
+  DOM.mobileHamburgerBtn.setAttribute('aria-expanded', 'true');
+}
+
+function closeDrawer() {
+  if (!DOM.sidebar) return;
+  DOM.sidebar.classList.remove('drawer-open');
+  DOM.sidebarScrim.classList.remove('visible');
+  DOM.sidebarScrim.hidden = true;
+  if (DOM.mobileHamburgerBtn) DOM.mobileHamburgerBtn.setAttribute('aria-expanded', 'false');
+}
+
+// Board status tabs (mobile) --------------------------------------------------
+function setBoardMobileStatus(status) {
+  DOM.workspaceBoard.dataset.mobileStatus = status;
+  DOM.boardMobileTabs.querySelectorAll('.board-tab').forEach((tab) => {
+    const active = tab.dataset.status === status;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+}
 
 // --- Category Modal Presets Picker ---
 function setupPresetColorsPicker() {
@@ -581,6 +664,8 @@ function setView(viewMode) {
   DOM.navListView.classList.toggle('active', viewMode === 'list');
   DOM.viewBoardBtn.classList.toggle('active', viewMode === 'board');
   DOM.viewListBtn.classList.toggle('active', viewMode === 'list');
+  DOM.bottomNavBoard.classList.toggle('active', viewMode === 'board');
+  DOM.bottomNavList.classList.toggle('active', viewMode === 'list');
   
   if (viewMode === 'board') {
     DOM.workspaceBoard.style.display = 'flex';
@@ -856,10 +941,13 @@ function renderTasks() {
       }
     });
     
-    // Update column counters
+    // Update column counters (matrix headers + mobile status tabs)
     DOM.todoCount.textContent = colCounts.todo;
     DOM.progressCount.textContent = colCounts['in-progress'];
     DOM.doneCount.textContent = colCounts.done;
+    DOM.tabTodoCount.textContent = colCounts.todo;
+    DOM.tabProgressCount.textContent = colCounts['in-progress'];
+    DOM.tabDoneCount.textContent = colCounts.done;
     
     // Update priority row counters
     const highCount = document.getElementById('high-count');
@@ -1404,6 +1492,35 @@ function setupEventListeners() {
   // Header quick toggles
   DOM.viewBoardBtn.addEventListener('click', () => setView('board'));
   DOM.viewListBtn.addEventListener('click', () => setView('list'));
+
+  // --- Mobile view wiring ---
+  // Desktop/mobile preview toggle + react to real viewport changes.
+  DOM.viewportToggleBtn.addEventListener('click', toggleViewport);
+  MOBILE_MQ.addEventListener('change', applyViewport);
+
+  // Sidebar drawer (hamburger in top bar + "Menu" in bottom nav + scrim).
+  DOM.mobileHamburgerBtn.addEventListener('click', openDrawer);
+  DOM.bottomNavMenu.addEventListener('click', openDrawer);
+  DOM.sidebarScrim.addEventListener('click', closeDrawer);
+  // Tapping any sidebar nav/category/theme/account action closes the drawer.
+  DOM.sidebar.addEventListener('click', (e) => {
+    if (e.target.closest('button, .category-item')) closeDrawer();
+  });
+
+  // Board status tabs (mobile board collapses to one status column).
+  DOM.boardMobileTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.board-tab');
+    if (tab) setBoardMobileStatus(tab.dataset.status);
+  });
+
+  // Bottom nav primary actions.
+  DOM.bottomNavBoard.addEventListener('click', () => setView('board'));
+  DOM.bottomNavList.addEventListener('click', () => setView('list'));
+  DOM.bottomNavAdd.addEventListener('click', () => openTaskModal());
+  DOM.bottomNavSearch.addEventListener('click', () => {
+    DOM.taskSearchInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    DOM.taskSearchInput.focus();
+  });
 
   // Search input actions
   DOM.taskSearchInput.addEventListener('input', (e) => {

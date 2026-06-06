@@ -1889,3 +1889,286 @@ main.main-content {
   color: hsl(var(--priority-high-hue), 85%, 60%);
   border-color: hsl(var(--priority-high-hue), 85%, 60%);
 }
+
+/* ===========================================================================
+   MOBILE VIEW
+   ---------------------------------------------------------------------------
+   `mobile-mode` on <html> drives the mobile LAYOUT. It is added by JS when the
+   screen is <=768px OR the in-app preview toggle is on. `mobile-frame` adds the
+   phone-chrome and is added only when the toggle is forced on a wide screen,
+   so a laptop can preview the real mobile layout inside a phone-sized frame.
+   =========================================================================== */
+
+/* --- Viewport preview toggle button (visible on desktop too) --- */
+.viewport-toggle-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.viewport-toggle-btn:hover { color: var(--text-secondary); }
+.viewport-toggle-btn[aria-pressed="true"] {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+/* --- Elements that only exist in mobile mode (hidden on desktop) --- */
+.mobile-hamburger-btn,
+.board-mobile-tabs,
+.mobile-bottom-nav { display: none; }
+.sidebar-scrim[hidden] { display: none; }
+
+/* --- Phone frame (toggle forced on a wide screen) --------------------------
+   A transform on <body> makes it the containing block for the fixed-position
+   bottom nav, scrim and modals, so they stay inside the frame. */
+html.mobile-frame { background: #0b0e14; }
+html.mobile-frame body {
+  width: 402px;
+  height: min(860px, calc(100vh - 40px));
+  margin: 20px auto;
+  overflow: hidden;
+  border: 12px solid #16181d;
+  border-radius: 46px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  transform: translateZ(0);
+  position: relative;
+}
+
+/* --- Mobile layout (frame preview AND real phones) ------------------------- */
+html.mobile-mode body { height: 100%; }
+html.mobile-mode .app-container {
+  grid-template-columns: 1fr;
+  height: 100%;
+  min-height: 0;
+}
+html.mobile-mode main.main-content { overflow: hidden; }
+
+/* Sidebar becomes a left slide-in drawer */
+html.mobile-mode aside.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 82%;
+  max-width: 320px;
+  z-index: 1100;
+  padding: 24px 20px;
+  border-right: 1px solid var(--border-color);
+  border-bottom: none;
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transform: translateX(-100%);
+  transition: transform var(--transition-normal);
+  overflow-y: auto;
+}
+html.mobile-mode aside.sidebar.drawer-open { transform: translateX(0); }
+
+.sidebar-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+.sidebar-scrim.visible { opacity: 1; }
+
+/* Top bar reflow: [≡ Title  ▢] / [search+filter] / [stats] */
+html.mobile-mode .top-bar {
+  height: auto;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  gap: 10px;
+}
+html.mobile-mode .mobile-hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  order: 1;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+html.mobile-mode .banner-welcome { order: 2; flex: 1; min-width: 0; }
+html.mobile-mode .banner-welcome p { display: none; }
+html.mobile-mode .viewport-toggle-btn { order: 3; }
+html.mobile-mode .header-search-filter { order: 4; flex-basis: 100%; width: 100%; }
+html.mobile-mode .search-box { flex: 1; width: auto; }
+html.mobile-mode .stats-grid {
+  order: 5;
+  flex-basis: 100%;
+  width: 100%;
+  overflow-x: auto;
+  gap: 12px;
+}
+html.mobile-mode .top-bar-spacer,
+html.mobile-mode .top-bar-divider,
+html.mobile-mode .view-toggle-group,
+html.mobile-mode #open-task-modal-btn { display: none; }
+
+/* Leave room for the fixed bottom nav at the end of scroll content */
+html.mobile-mode .content-body {
+  padding: 14px 14px calc(86px + env(safe-area-inset-bottom));
+}
+
+/* --- Board: collapse 3x3 matrix to one status column at a time --- */
+html.mobile-mode .board-mobile-tabs {
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 4px 0 8px;
+  background: var(--bg-app);
+}
+.board-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.board-tab.active {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+.board-tab-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.board-tab-count {
+  background: var(--bg-card);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+html.mobile-mode .matrix-header-row { display: none; }
+html.mobile-mode .matrix-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+html.mobile-mode .matrix-row-label-cell {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  text-align: left;
+  border-radius: var(--border-radius-sm);
+}
+html.mobile-mode .matrix-cell { display: none; min-height: 80px; }
+html.mobile-mode .board-view[data-mobile-status="todo"] .matrix-cell[data-status="todo"],
+html.mobile-mode .board-view[data-mobile-status="in-progress"] .matrix-cell[data-status="in-progress"],
+html.mobile-mode .board-view[data-mobile-status="done"] .matrix-cell[data-status="done"] {
+  display: flex;
+}
+
+/* --- Bottom navigation bar --- */
+html.mobile-mode .mobile-bottom-nav {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  justify-content: space-around;
+  align-items: center;
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-color);
+}
+.bottom-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 48px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.bottom-nav-btn i { font-size: 1.3rem; }
+.bottom-nav-btn.active { color: var(--primary); }
+.bottom-nav-btn.bottom-nav-add {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  margin-top: -16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  box-shadow: var(--glow-indigo), var(--shadow-md);
+}
+.bottom-nav-btn.bottom-nav-add i { font-size: 1.6rem; }
+
+/* --- Modals become bottom sheets --- */
+html.mobile-mode .modal-overlay { align-items: flex-end; padding: 0; }
+html.mobile-mode .modal-window {
+  width: 100%;
+  max-width: 100%;
+  max-height: 92vh;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  transform: translateY(100%);
+}
+html.mobile-mode .modal-overlay.active .modal-window { transform: translateY(0); }
+html.mobile-mode .modal-body { max-height: calc(92vh - 150px); }
+
+/* --- Touch targets & input sizing (avoid iOS auto-zoom at <16px) --- */
+html.mobile-mode .view-btn,
+html.mobile-mode .theme-btn,
+html.mobile-mode .modal-close,
+html.mobile-mode .btn-secondary-sm,
+html.mobile-mode .filter-select { min-height: 44px; }
+html.mobile-mode .form-input,
+html.mobile-mode .form-select,
+html.mobile-mode .form-textarea,
+html.mobile-mode .search-box input,
+html.mobile-mode .subtask-add-input { font-size: 16px; }
+html.mobile-mode .form-input,
+html.mobile-mode .form-select { min-height: 44px; }
+
+/* Respect reduced-motion for the new transitions */
+@media (prefers-reduced-motion: reduce) {
+  aside.sidebar,
+  .sidebar-scrim,
+  .modal-window { transition: none !important; }
+}

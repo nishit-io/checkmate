@@ -123,6 +123,11 @@
       <!-- Single unified top bar -->
       <div class="top-bar">
 
+        <!-- Mobile-only: opens the sidebar as a slide-in drawer -->
+        <button type="button" class="mobile-hamburger-btn" id="mobile-hamburger-btn" aria-label="Open menu" aria-expanded="false">
+          <i class="ri-menu-line"></i>
+        </button>
+
         <!-- 1. Title + subtitle -->
         <div class="banner-welcome">
           <h2>Task Dashboard</h2>
@@ -189,6 +194,11 @@
           </button>
         </div>
 
+        <!-- View preview toggle: switch between desktop and mobile layout on a laptop -->
+        <button type="button" class="viewport-toggle-btn" id="viewport-toggle-btn" title="Toggle mobile preview" aria-label="Toggle mobile preview" aria-pressed="false">
+          <i class="ri-smartphone-line"></i>
+        </button>
+
         <!-- 5. Add Task button -->
         <button type="button" class="primary-btn" id="open-task-modal-btn" aria-label="Create new task">
           <i class="ri-add-fill"></i>
@@ -201,8 +211,27 @@
       <section class="content-body" id="workspace-body">
         
         <!-- 2D Priority-Status Matrix Board View -->
-        <div class="board-view" id="workspace-board">
-          
+        <div class="board-view" id="workspace-board" data-mobile-status="todo">
+
+          <!-- Mobile-only: status tabs (board collapses to one status column at a time) -->
+          <div class="board-mobile-tabs" id="board-mobile-tabs" role="tablist" aria-label="Task status">
+            <button type="button" class="board-tab active" data-status="todo" role="tab" aria-selected="true">
+              <span class="board-tab-dot" style="background-color: var(--primary);"></span>
+              <span class="board-tab-label">To Do</span>
+              <span class="board-tab-count" id="tab-todo-count">0</span>
+            </button>
+            <button type="button" class="board-tab" data-status="in-progress" role="tab" aria-selected="false">
+              <span class="board-tab-dot" style="background-color: var(--accent-cyan);"></span>
+              <span class="board-tab-label">In Progress</span>
+              <span class="board-tab-count" id="tab-progress-count">0</span>
+            </button>
+            <button type="button" class="board-tab" data-status="done" role="tab" aria-selected="false">
+              <span class="board-tab-dot" style="background-color: rgb(var(--priority-low-hue));"></span>
+              <span class="board-tab-label">Done</span>
+              <span class="board-tab-count" id="tab-done-count">0</span>
+            </button>
+          </div>
+
           <!-- Column Headers Row -->
           <div class="matrix-header-row">
             <div class="matrix-corner-cell">
@@ -266,6 +295,32 @@
     </main>
 
   </div>
+
+  <!-- Mobile drawer scrim: dims the app when the sidebar drawer is open -->
+  <div class="sidebar-scrim" id="sidebar-scrim" hidden></div>
+
+  <!-- Mobile-only bottom navigation bar (primary actions) -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Primary">
+    <button type="button" class="bottom-nav-btn active" id="bottom-nav-board" aria-label="Board view">
+      <i class="ri-grid-fill"></i>
+      <span>Board</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" id="bottom-nav-list" aria-label="List view">
+      <i class="ri-align-justify"></i>
+      <span>List</span>
+    </button>
+    <button type="button" class="bottom-nav-btn bottom-nav-add" id="bottom-nav-add" aria-label="Create new task">
+      <i class="ri-add-fill"></i>
+    </button>
+    <button type="button" class="bottom-nav-btn" id="bottom-nav-search" aria-label="Search tasks">
+      <i class="ri-search-line"></i>
+      <span>Search</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" id="bottom-nav-menu" aria-label="Open menu">
+      <i class="ri-menu-line"></i>
+      <span>Menu</span>
+    </button>
+  </nav>
 
   <!-- --- MODALS & DRAWERS --- -->
 
