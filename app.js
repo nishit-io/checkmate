@@ -86,7 +86,7 @@ let state = {
   filterCategory: 'all', // 'all' | categoryId
   searchQuery: '',
   selectedSidebarCategory: 'all', // 'all' | categoryId
-  theme: 'dark', // 'dark' | 'light' | 'system'
+  theme: 'light', // 'dark' | 'light' | 'system'
   tempSubtasks: [] // Array of subtasks for current modal workspace
 };
 
@@ -162,20 +162,28 @@ const DOM = {
   accountAvatar: document.getElementById('account-avatar'),
   signoutBtn: document.getElementById('signout-btn'),
 
-  // Mobile view: drawer, bottom nav, viewport toggle, board status tabs
-  sidebar: document.querySelector('aside.sidebar'),
-  sidebarScrim: document.getElementById('sidebar-scrim'),
-  mobileHamburgerBtn: document.getElementById('mobile-hamburger-btn'),
+  // Mobile view: top-bar controls, chip row, matrix grid, drill-in, quick-add, nav
   viewportToggleBtn: document.getElementById('viewport-toggle-btn'),
-  boardMobileTabs: document.getElementById('board-mobile-tabs'),
-  tabTodoCount: document.getElementById('tab-todo-count'),
-  tabProgressCount: document.getElementById('tab-progress-count'),
-  tabDoneCount: document.getElementById('tab-done-count'),
+  themeToggleBtn: document.getElementById('theme-toggle-btn'),
+  accountAvatarBtn: document.getElementById('account-avatar-btn'),
+  accountPopover: document.getElementById('account-popover'),
+  accountPopoverEmail: document.getElementById('account-popover-email'),
+  accountPopoverSignout: document.getElementById('account-popover-signout'),
+  categoryChips: document.getElementById('category-chips'),
+  mobileGrid: document.getElementById('mobile-grid'),
+  drillPanel: document.getElementById('drill-panel'),
+  drillTitle: document.getElementById('drill-title'),
+  drillList: document.getElementById('drill-list'),
+  drillBack: document.getElementById('drill-back'),
+  qaScrim: document.getElementById('qa-scrim'),
+  qaSheet: document.getElementById('qa-sheet'),
+  qaTitle: document.getElementById('qa-title'),
+  qaCtx: document.getElementById('qa-ctx'),
+  qaMore: document.getElementById('qa-more'),
+  qaSave: document.getElementById('qa-save'),
   bottomNavBoard: document.getElementById('bottom-nav-board'),
   bottomNavList: document.getElementById('bottom-nav-list'),
-  bottomNavAdd: document.getElementById('bottom-nav-add'),
-  bottomNavSearch: document.getElementById('bottom-nav-search'),
-  bottomNavMenu: document.getElementById('bottom-nav-menu')
+  bottomNavAdd: document.getElementById('bottom-nav-add')
 };
 
 // --- Cloud vs local mode ----------------------------------------------------
@@ -237,6 +245,8 @@ async function handleSession(session) {
     const email = session.user.email || '';
     DOM.accountEmail.textContent = email;
     DOM.accountAvatar.textContent = (email[0] || '?').toUpperCase();
+    if (DOM.accountAvatarBtn) DOM.accountAvatarBtn.textContent = (email[0] || '?').toUpperCase();
+    if (DOM.accountPopoverEmail) DOM.accountPopoverEmail.textContent = email;
 
     await loadCloudData();
     renderApp();
@@ -269,13 +279,13 @@ function loadLocalData() {
 
   state.tasks = savedTasks ? JSON.parse(savedTasks) : DEFAULT_TASKS;
   state.categories = savedCategories ? JSON.parse(savedCategories) : DEFAULT_CATEGORIES;
-  state.theme = savedTheme ? savedTheme : 'dark';
+  state.theme = savedTheme ? savedTheme : 'light';
   state.activeView = savedView ? savedView : 'board';
 }
 
 async function loadCloudData() {
   // Theme/view stay per-device in localStorage.
-  state.theme = localStorage.getItem('checkmate_theme') || 'dark';
+  state.theme = localStorage.getItem('checkmate_theme') || 'light';
   state.activeView = localStorage.getItem('checkmate_view') || 'board';
   applyTheme();
 
@@ -386,6 +396,7 @@ function applyTheme() {
   DOM.themeLightBtn.classList.toggle('active', state.theme === 'light');
   DOM.themeDarkBtn.classList.toggle('active', state.theme === 'dark');
   DOM.themeSystemBtn.classList.toggle('active', state.theme === 'system');
+  syncThemeToggleIcon();
 }
 
 // Handle system theme updates dynamically
@@ -396,11 +407,12 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 
 // --- Mobile view ------------------------------------------------------------
-// Two ways the mobile layout activates:
-//   1. Real small screens (<=768px) via the media query below.
-//   2. The in-app preview toggle (forceMobile) so it can be tested on a laptop.
-// `mobile-mode` on <html> drives the layout; `mobile-frame` adds the phone
-// chrome only when forced on a wide screen.
+// The mobile layout is driven by a `mobile-mode` class on <html>, set by JS when
+// the screen is <=768px OR the in-app preview toggle (forceMobile) is on. The
+// toggle additionally adds `force-mobile`, which renders the app in a centered
+// ~400px column on a laptop. Board on mobile = a 3x3 status/priority count grid
+// (renderMobileGrid); tapping a tile drills into that intersection (openDrill).
+
 const MOBILE_MQ = window.matchMedia('(max-width: 768px)');
 let forceMobile = localStorage.getItem('checkmate_force_mobile') === '1';
 
@@ -408,19 +420,15 @@ function applyViewport() {
   const root = document.documentElement;
   const realMobile = MOBILE_MQ.matches;
   const mobile = forceMobile || realMobile;
-
   root.classList.toggle('mobile-mode', mobile);
-  root.classList.toggle('mobile-frame', forceMobile && !realMobile);
-
+  root.classList.toggle('force-mobile', forceMobile && !realMobile);
   if (DOM.viewportToggleBtn) {
     DOM.viewportToggleBtn.setAttribute('aria-pressed', String(forceMobile));
-    const icon = DOM.viewportToggleBtn.querySelector('i');
-    if (icon) icon.className = forceMobile ? 'ri-computer-line' : 'ri-smartphone-line';
-    DOM.viewportToggleBtn.title = forceMobile ? 'Switch to desktop view' : 'Toggle mobile preview';
+    const i = DOM.viewportToggleBtn.querySelector('i');
+    if (i) i.className = forceMobile ? 'ri-computer-line' : 'ri-smartphone-line';
+    DOM.viewportToggleBtn.title = forceMobile ? 'Switch to desktop view' : 'Preview mobile';
   }
-
-  // Leaving mobile: make sure the drawer is closed.
-  if (!mobile) closeDrawer();
+  if (!mobile) closeDrill();
 }
 
 function toggleViewport() {
@@ -429,32 +437,183 @@ function toggleViewport() {
   applyViewport();
 }
 
-// Sidebar drawer (mobile) -----------------------------------------------------
-function openDrawer() {
-  DOM.sidebar.classList.add('drawer-open');
-  DOM.sidebarScrim.hidden = false;
-  // Force reflow so the opacity transition runs from hidden -> visible.
-  void DOM.sidebarScrim.offsetWidth;
-  DOM.sidebarScrim.classList.add('visible');
-  DOM.mobileHamburgerBtn.setAttribute('aria-expanded', 'true');
+// Resolve the theme actually painted (handles the 'system' setting).
+function resolveActiveTheme() {
+  if (state.theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return state.theme;
 }
 
-function closeDrawer() {
-  if (!DOM.sidebar) return;
-  DOM.sidebar.classList.remove('drawer-open');
-  DOM.sidebarScrim.classList.remove('visible');
-  DOM.sidebarScrim.hidden = true;
-  if (DOM.mobileHamburgerBtn) DOM.mobileHamburgerBtn.setAttribute('aria-expanded', 'false');
+// One-tap light<->dark toggle (mobile top bar). Flips the currently painted theme.
+function toggleTheme() {
+  state.theme = resolveActiveTheme() === 'dark' ? 'light' : 'dark';
+  saveData();
+  applyTheme();
 }
 
-// Board status tabs (mobile) --------------------------------------------------
-function setBoardMobileStatus(status) {
-  DOM.workspaceBoard.dataset.mobileStatus = status;
-  DOM.boardMobileTabs.querySelectorAll('.board-tab').forEach((tab) => {
-    const active = tab.dataset.status === status;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', String(active));
+// Keep the sun/moon icon in sync with the painted theme.
+function syncThemeToggleIcon() {
+  if (!DOM.themeToggleBtn) return;
+  const dark = resolveActiveTheme() === 'dark';
+  const icon = DOM.themeToggleBtn.querySelector('i');
+  if (icon) icon.className = dark ? 'ri-sun-line' : 'ri-moon-line';
+  DOM.themeToggleBtn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+}
+
+// Mobile board: 3x3 grid of status/priority count tiles built from filtered tasks.
+const MOBILE_PRI = [['high', 'High'], ['medium', 'Med'], ['low', 'Low']];
+const MOBILE_ST = [['todo', 'To Do'], ['in-progress', 'In Prog'], ['done', 'Done']];
+
+function renderMobileGrid() {
+  const grid = DOM.mobileGrid;
+  if (!grid) return;
+  const tasks = getFilteredTasks();
+  grid.querySelectorAll('.mg-rowhead, .mg-tile').forEach(n => n.remove());
+  MOBILE_PRI.forEach(([p, pl]) => {
+    const rh = document.createElement('div');
+    rh.className = 'mg-rowhead pri-' + p;
+    rh.innerHTML = `<span class="mg-rl">${pl}</span>`;
+    grid.appendChild(rh);
+    MOBILE_ST.forEach(([s, sl]) => {
+      const n = tasks.filter(t => t.priority === p && t.status === s).length;
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'mg-tile pri-' + p + (n === 0 ? ' empty' : '');
+      tile.dataset.priority = p;
+      tile.dataset.status = s;
+      tile.innerHTML = `<span class="mg-count">${n}</span><span class="mg-sub">${sl}</span>`;
+      grid.appendChild(tile);
+    });
   });
+}
+
+// Drill-in: full-screen list of one status/priority intersection.
+let drillCell = null; // { priority, status }
+const PRI_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
+const ST_LABEL = { todo: 'To Do', 'in-progress': 'In Progress', done: 'Done' };
+
+function openDrill(priority, status) {
+  drillCell = { priority, status };
+  DOM.drillTitle.textContent = `${PRI_LABEL[priority]} · ${ST_LABEL[status]}`;
+  renderDrillList();
+  DOM.drillPanel.hidden = false;
+  requestAnimationFrame(() => DOM.drillPanel.classList.add('open'));
+}
+
+function closeDrill() {
+  if (!DOM.drillPanel || DOM.drillPanel.hidden) { drillCell = null; return; }
+  DOM.drillPanel.classList.remove('open');
+  drillCell = null;
+  setTimeout(() => { DOM.drillPanel.hidden = true; }, 250);
+}
+
+function renderDrillList() {
+  if (!drillCell || !DOM.drillList) return;
+  const { priority, status } = drillCell;
+  const tasks = getFilteredTasks()
+    .filter(t => t.priority === priority && t.status === status)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  DOM.drillList.innerHTML = '';
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'drill-add';
+  add.innerHTML = `<i class="ri-add-line"></i> Add to ${PRI_LABEL[priority]} · ${ST_LABEL[status]}`;
+  add.addEventListener('click', () => openQuickAdd(priority, status));
+  DOM.drillList.appendChild(add);
+  if (!tasks.length) {
+    const e = document.createElement('p');
+    e.className = 'drill-empty';
+    e.textContent = 'No tasks here yet.';
+    DOM.drillList.appendChild(e);
+  } else {
+    tasks.forEach(t => DOM.drillList.appendChild(createTaskCard(t)));
+  }
+}
+
+// Title-first quick-add sheet (mobile). Defaults To Do / Medium / current category;
+// "More options" hands off to the full task modal. Contextual prefill from a cell.
+let qaPrefill = { priority: 'medium', status: 'todo' };
+
+function openQuickAdd(priority = 'medium', status = 'todo') {
+  qaPrefill = { priority, status };
+  const catName = state.filterCategory !== 'all'
+    ? (state.categories.find(c => c.id === state.filterCategory)?.name || '')
+    : (state.categories[0]?.name || '');
+  DOM.qaCtx.innerHTML = `<span>${ST_LABEL[status]}</span><span>${PRI_LABEL[priority]}</span>`
+    + (catName ? `<span>${escapeHTML(catName)}</span>` : '');
+  DOM.qaTitle.value = '';
+  DOM.qaScrim.hidden = false;
+  DOM.qaSheet.hidden = false;
+  requestAnimationFrame(() => { DOM.qaSheet.classList.add('open'); DOM.qaScrim.classList.add('open'); });
+  setTimeout(() => DOM.qaTitle.focus(), 60);
+}
+
+function closeQuickAdd() {
+  DOM.qaSheet.classList.remove('open');
+  DOM.qaScrim.classList.remove('open');
+  setTimeout(() => { DOM.qaSheet.hidden = true; DOM.qaScrim.hidden = true; }, 200);
+}
+
+function saveQuickAdd() {
+  const title = DOM.qaTitle.value.trim();
+  if (!title) { DOM.qaTitle.focus(); return; }
+  const catId = state.filterCategory !== 'all' ? state.filterCategory : (state.categories[0]?.id || null);
+  const task = {
+    id: genId(), title, description: '', category: catId,
+    priority: qaPrefill.priority, status: qaPrefill.status,
+    dueDate: '', subtasks: [], order: Date.now()
+  };
+  state.tasks.push(task);
+  persistTaskUpsert(task);
+  closeQuickAdd();
+  renderTasks();
+  updateStats();
+}
+
+// "More options" — close the quick sheet and open the full modal, prefilled.
+function quickAddMore() {
+  const pri = qaPrefill.priority, st = qaPrefill.status, title = DOM.qaTitle.value.trim();
+  closeQuickAdd();
+  openTaskModal();
+  DOM.taskFormTitle.value = title;
+  DOM.taskFormPriority.value = pri;
+  DOM.taskFormStatus.value = st;
+  if (state.filterCategory !== 'all') DOM.taskFormCategory.value = state.filterCategory;
+}
+
+// Single source of truth for the category filter (top dropdown + mobile chips +
+// sidebar all stay in sync). 'all' or a category id.
+function setCategoryFilter(catId) {
+  state.filterCategory = catId;
+  state.selectedSidebarCategory = catId;
+  if (DOM.taskFilterCategory) DOM.taskFilterCategory.value = catId;
+  document.querySelectorAll('.category-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.cat === catId);
+  });
+  document.querySelectorAll('.category-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.cat === catId);
+  });
+  renderTasks();
+}
+
+// Render the horizontal category chip row (mobile quick category nav).
+function renderCategoryChips() {
+  if (!DOM.categoryChips) return;
+  const chips = [{ id: 'all', name: 'All', color: 'var(--primary)' }]
+    .concat(state.categories.map(c => ({ id: c.id, name: c.name, color: c.color })));
+  DOM.categoryChips.innerHTML = chips.map(c =>
+    `<button type="button" class="category-chip${state.filterCategory === c.id ? ' active' : ''}" data-cat="${c.id}">
+       <span class="category-chip-dot" style="background:${c.color}"></span>${escapeHTML(c.name)}
+     </button>`
+  ).join('');
+}
+
+// Account popover (mobile) — small dropdown from the avatar, no full-screen dim.
+function toggleAccountPopover(force) {
+  if (!DOM.accountPopover) return;
+  const open = force != null ? force : DOM.accountPopover.hidden;
+  DOM.accountPopover.hidden = !open;
 }
 
 // --- Category Modal Presets Picker ---
@@ -811,6 +970,9 @@ function renderCategories() {
     if (state.filterCategory === cat.id) opt.selected = true;
     DOM.taskFilterCategory.appendChild(opt);
   });
+
+  // 4. Mobile category chip row (mirrors the dropdown).
+  renderCategoryChips();
 }
 
 function openCategoryColorPicker(e, catId, currentColor) {
@@ -941,13 +1103,10 @@ function renderTasks() {
       }
     });
     
-    // Update column counters (matrix headers + mobile status tabs)
+    // Update column counters (desktop matrix headers)
     DOM.todoCount.textContent = colCounts.todo;
     DOM.progressCount.textContent = colCounts['in-progress'];
     DOM.doneCount.textContent = colCounts.done;
-    DOM.tabTodoCount.textContent = colCounts.todo;
-    DOM.tabProgressCount.textContent = colCounts['in-progress'];
-    DOM.tabDoneCount.textContent = colCounts.done;
     
     // Update priority row counters
     const highCount = document.getElementById('high-count');
@@ -990,7 +1149,11 @@ function renderTasks() {
       });
     }
   }
-  
+
+  // Mobile board = 3x3 count grid; refresh the drill-in if it's open.
+  renderMobileGrid();
+  if (drillCell) renderDrillList();
+
   setupDragAndDrop();
 }
 
@@ -1498,29 +1661,48 @@ function setupEventListeners() {
   DOM.viewportToggleBtn.addEventListener('click', toggleViewport);
   MOBILE_MQ.addEventListener('change', applyViewport);
 
-  // Sidebar drawer (hamburger in top bar + "Menu" in bottom nav + scrim).
-  DOM.mobileHamburgerBtn.addEventListener('click', openDrawer);
-  DOM.bottomNavMenu.addEventListener('click', openDrawer);
-  DOM.sidebarScrim.addEventListener('click', closeDrawer);
-  // Tapping any sidebar nav/category/theme/account action closes the drawer.
-  DOM.sidebar.addEventListener('click', (e) => {
-    if (e.target.closest('button, .category-item')) closeDrawer();
+  // One-tap light/dark theme toggle (top bar).
+  DOM.themeToggleBtn.addEventListener('click', toggleTheme);
+
+  // Account popover (avatar in top bar). Toggles a small dropdown; clicking
+  // elsewhere closes it. No full-screen dim.
+  DOM.accountAvatarBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAccountPopover();
+  });
+  DOM.accountPopoverSignout.addEventListener('click', () => {
+    toggleAccountPopover(false);
+    DB.Auth.signOut();
+  });
+  document.addEventListener('click', (e) => {
+    if (!DOM.accountPopover.hidden && !e.target.closest('.account-popover, #account-avatar-btn')) {
+      toggleAccountPopover(false);
+    }
   });
 
-  // Board status tabs (mobile board collapses to one status column).
-  DOM.boardMobileTabs.addEventListener('click', (e) => {
-    const tab = e.target.closest('.board-tab');
-    if (tab) setBoardMobileStatus(tab.dataset.status);
+  // Category chip row (mobile quick category nav).
+  DOM.categoryChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.category-chip');
+    if (chip) setCategoryFilter(chip.dataset.cat);
   });
 
-  // Bottom nav primary actions.
+  // Mobile matrix grid: tap a tile -> drill into that intersection.
+  DOM.mobileGrid.addEventListener('click', (e) => {
+    const tile = e.target.closest('.mg-tile');
+    if (tile) openDrill(tile.dataset.priority, tile.dataset.status);
+  });
+  DOM.drillBack.addEventListener('click', closeDrill);
+
+  // Title-first quick-add sheet.
+  DOM.qaScrim.addEventListener('click', closeQuickAdd);
+  DOM.qaSave.addEventListener('click', saveQuickAdd);
+  DOM.qaMore.addEventListener('click', quickAddMore);
+  DOM.qaTitle.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveQuickAdd(); } });
+
+  // Bottom nav primary actions (Add opens the quick-add sheet).
   DOM.bottomNavBoard.addEventListener('click', () => setView('board'));
   DOM.bottomNavList.addEventListener('click', () => setView('list'));
-  DOM.bottomNavAdd.addEventListener('click', () => openTaskModal());
-  DOM.bottomNavSearch.addEventListener('click', () => {
-    DOM.taskSearchInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    DOM.taskSearchInput.focus();
-  });
+  DOM.bottomNavAdd.addEventListener('click', () => openQuickAdd());
 
   // Search input actions
   DOM.taskSearchInput.addEventListener('input', (e) => {
@@ -1528,10 +1710,9 @@ function setupEventListeners() {
     renderTasks();
   });
 
-  // Top category filter dropdown
+  // Top category filter dropdown (kept in sync with the mobile chip row)
   DOM.taskFilterCategory.addEventListener('change', (e) => {
-    state.filterCategory = e.target.value;
-    renderTasks();
+    setCategoryFilter(e.target.value);
   });
 
   // Dialog overlays close buttons

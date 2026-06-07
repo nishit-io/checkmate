@@ -1891,284 +1891,278 @@ main.main-content {
 }
 
 /* ===========================================================================
-   MOBILE VIEW
+   MOBILE VIEW  (clean-flat, light-default)
    ---------------------------------------------------------------------------
-   `mobile-mode` on <html> drives the mobile LAYOUT. It is added by JS when the
-   screen is <=768px OR the in-app preview toggle is on. `mobile-frame` adds the
-   phone-chrome and is added only when the toggle is forced on a wide screen,
-   so a laptop can preview the real mobile layout inside a phone-sized frame.
+   Layout driven by `html.mobile-mode` (added by JS when <=768px OR the in-app
+   toggle is on). `html.force-mobile` renders it in a centered ~400px column on
+   a laptop. Board on mobile = a 3x3 status/priority count grid; tapping a tile
+   drills into a full-screen list (.drill-panel).
    =========================================================================== */
 
-/* --- Viewport preview toggle button (visible on desktop too) --- */
+/* Mobile-only controls hidden on desktop */
+.theme-toggle-btn,
+.account-avatar-wrap,
+.category-chips,
+.mobile-grid,
+.mobile-bottom-nav { display: none; }
+.drill-panel[hidden],
+.qa-scrim[hidden],
+.qa-sheet[hidden] { display: none; }
+
+/* Desktop/mobile preview toggle button (visible on desktop so you can flip in) */
 .viewport-toggle-btn {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
+  width: 38px; height: 38px;
   border-radius: var(--border-radius-sm);
   border: 1px solid var(--border-color);
   background: var(--bg-input);
   color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.05rem;
-  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; cursor: pointer;
   transition: all var(--transition-fast);
 }
 .viewport-toggle-btn:hover { color: var(--text-secondary); }
 .viewport-toggle-btn[aria-pressed="true"] {
-  color: var(--primary);
-  border-color: var(--primary);
+  color: var(--primary); border-color: var(--primary);
   background: rgba(var(--primary-rgb), 0.08);
 }
 
-/* --- Elements that only exist in mobile mode (hidden on desktop) --- */
-.mobile-hamburger-btn,
-.board-mobile-tabs,
-.mobile-bottom-nav { display: none; }
-.sidebar-scrim[hidden] { display: none; }
-
-/* --- Phone frame (toggle forced on a wide screen) --------------------------
-   A transform on <body> makes it the containing block for the fixed-position
-   bottom nav, scrim and modals, so they stay inside the frame. */
-html.mobile-frame { background: #0b0e14; }
-html.mobile-frame body {
+/* --- force-mobile: centered ~400px column on a laptop (no bezel) ---
+   transform on <body> makes it the containing block for the fixed bottom nav,
+   drill panel, quick-add sheet and scrim, so they stay inside the column. */
+html.force-mobile { background: #0b0e14; }
+html.force-mobile body {
   width: 402px;
-  height: min(860px, calc(100vh - 40px));
+  height: min(880px, calc(100vh - 40px));
   margin: 20px auto;
   overflow: hidden;
-  border: 12px solid #16181d;
-  border-radius: 46px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
   transform: translateZ(0);
   position: relative;
 }
 
-/* --- Mobile layout (frame preview AND real phones) ------------------------- */
-html.mobile-mode body { height: 100%; }
+/* ===================== mobile layout (mobile-mode) ===================== */
+html.mobile-mode body { height: auto; min-height: 100dvh; overflow-x: hidden; }
 html.mobile-mode .app-container {
   grid-template-columns: 1fr;
-  height: 100%;
-  min-height: 0;
-}
-html.mobile-mode main.main-content { overflow: hidden; }
-
-/* Sidebar becomes a left slide-in drawer */
-html.mobile-mode aside.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 82%;
-  max-width: 320px;
-  z-index: 1100;
-  padding: 24px 20px;
-  border-right: 1px solid var(--border-color);
-  border-bottom: none;
-  background: var(--bg-panel);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transform: translateX(-100%);
-  transition: transform var(--transition-normal);
-  overflow-y: auto;
-}
-html.mobile-mode aside.sidebar.drawer-open { transform: translateX(0); }
-
-.sidebar-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 1090;
-  background: rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-.sidebar-scrim.visible { opacity: 1; }
-
-/* Top bar reflow: [≡ Title  ▢] / [search+filter] / [stats] */
-html.mobile-mode .top-bar {
   height: auto;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  gap: 10px;
+  min-height: 100dvh;
+  background: var(--bg-gradient);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
 }
-html.mobile-mode .mobile-hamburger-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  order: 1;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 1.4rem;
-  cursor: pointer;
+html.mobile-mode aside.sidebar { display: none; }
+html.mobile-mode main.main-content { overflow: visible; }
+/* let flex children shrink so rows never overflow */
+html.mobile-mode .banner-welcome,
+html.mobile-mode .search-box { min-width: 0; }
+
+/* Top bar: brand · theme · toggle · avatar / search full-width below */
+html.mobile-mode .top-bar {
+  position: sticky; top: 0; z-index: 30;
+  height: auto; flex-wrap: wrap; gap: 10px 8px; padding: 12px 14px;
+  background: var(--bg-panel);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--border-color);
 }
-html.mobile-mode .banner-welcome { order: 2; flex: 1; min-width: 0; }
+html.mobile-mode .banner-welcome { order: 1; flex: 1; }
+html.mobile-mode .banner-welcome h2 { font-size: 1.05rem; }
 html.mobile-mode .banner-welcome p { display: none; }
-html.mobile-mode .viewport-toggle-btn { order: 3; }
-html.mobile-mode .header-search-filter { order: 4; flex-basis: 100%; width: 100%; }
+html.mobile-mode .viewport-toggle-btn { order: 2; }
+html.mobile-mode .theme-toggle-btn { order: 3; }
+html.mobile-mode .account-avatar-wrap { order: 4; }
+html.mobile-mode .header-search-filter { order: 5; flex-basis: 100%; width: 100%; gap: 8px; }
 html.mobile-mode .search-box { flex: 1; width: auto; }
-html.mobile-mode .stats-grid {
-  order: 5;
-  flex-basis: 100%;
-  width: 100%;
-  overflow-x: auto;
-  gap: 12px;
-}
+html.mobile-mode .search-box input { font-size: 16px; min-height: 44px; }
+html.mobile-mode .filter-select,
 html.mobile-mode .top-bar-spacer,
 html.mobile-mode .top-bar-divider,
 html.mobile-mode .view-toggle-group,
 html.mobile-mode #open-task-modal-btn { display: none; }
 
-/* Leave room for the fixed bottom nav at the end of scroll content */
-html.mobile-mode .content-body {
-  padding: 14px 14px calc(86px + env(safe-area-inset-bottom));
+/* Theme toggle (sun/moon) */
+html.mobile-mode .theme-toggle-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0;
+  border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--bg-input); color: var(--text-secondary);
+  font-size: 1.2rem; cursor: pointer;
+}
+html.mobile-mode .theme-toggle-btn:active { transform: scale(0.97); }
+
+/* Account avatar + popover */
+html.mobile-mode .account-avatar-wrap { position: relative; display: block; flex-shrink: 0; }
+.account-avatar-btn {
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer;
+}
+.account-avatar-btn:active { transform: scale(0.97); }
+.account-popover {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+  min-width: 200px; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  background: var(--bg-panel); border: 1px solid var(--border-color);
+  border-radius: 12px; box-shadow: var(--shadow-lg);
+}
+.account-popover[hidden] { display: none; }
+.account-popover-email { font-size: 0.82rem; color: var(--text-secondary); word-break: break-all; }
+.account-popover-signout {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-input);
+  color: var(--text-primary); font-family: var(--font-body); font-weight: 600;
+  font-size: 0.85rem; cursor: pointer;
 }
 
-/* --- Board: collapse 3x3 matrix to one status column at a time --- */
-html.mobile-mode .board-mobile-tabs {
-  display: flex;
-  gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 4px 0 8px;
-  background: var(--bg-app);
+/* Category chip row */
+html.mobile-mode .category-chips {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  padding: 10px 14px; position: sticky; top: 0; z-index: 20;
+  background: var(--bg-gradient); border-bottom: 1px solid var(--border-color);
 }
-.board-tab {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 6px 4px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 0.78rem;
-  cursor: pointer;
-  transition: all var(--transition-fast);
+html.mobile-mode .category-chips::-webkit-scrollbar { display: none; }
+.category-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  min-height: 38px; padding: 8px 14px; border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border-color); background: var(--bg-card);
+  color: var(--text-secondary); font-family: var(--font-body); font-weight: 600;
+  font-size: 0.82rem; white-space: nowrap; cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
-.board-tab.active {
-  color: var(--primary);
-  border-color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.08);
-}
-.board-tab-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.board-tab-count {
-  background: var(--bg-card);
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-}
+.category-chip:active { transform: scale(0.97); }
+.category-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.category-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.category-chip.active .category-chip-dot { background: #fff !important; }
 
-html.mobile-mode .matrix-header-row { display: none; }
-html.mobile-mode .matrix-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-}
-html.mobile-mode .matrix-row-label-cell {
-  flex-direction: row;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  text-align: left;
-  border-radius: var(--border-radius-sm);
-}
-html.mobile-mode .matrix-cell { display: none; min-height: 80px; }
-html.mobile-mode .board-view[data-mobile-status="todo"] .matrix-cell[data-status="todo"],
-html.mobile-mode .board-view[data-mobile-status="in-progress"] .matrix-cell[data-status="in-progress"],
-html.mobile-mode .board-view[data-mobile-status="done"] .matrix-cell[data-status="done"] {
-  display: flex;
-}
+/* Content area: leave room for the fixed bottom nav */
+html.mobile-mode .content-body { padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); }
 
-/* --- Bottom navigation bar --- */
+/* Hide the desktop matrix on mobile — replaced by the count grid */
+html.mobile-mode .matrix-header-row,
+html.mobile-mode .matrix-row { display: none; }
+
+/* --- Mobile matrix count grid (Variant B tiles) --- */
+html.mobile-mode .mobile-grid {
+  display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 8px;
+}
+.mg-corner, .mg-colhead {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); text-align: center; align-self: center; padding-bottom: 2px;
+}
+.mg-rowhead { display: flex; align-items: center; padding-right: 4px; }
+.mg-rowhead .mg-rl { font-family: var(--font-title); font-weight: 700; font-size: 0.82rem; }
+.mg-rowhead.pri-high .mg-rl   { color: hsl(var(--priority-high-hue), 70%, 52%); }
+.mg-rowhead.pri-medium .mg-rl { color: hsl(var(--priority-medium-hue), 80%, 42%); }
+.mg-rowhead.pri-low .mg-rl    { color: hsl(var(--priority-low-hue), 55%, 38%); }
+.mg-tile {
+  position: relative; min-height: 64px; border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 12px); background: var(--bg-card); box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  cursor: pointer; overflow: hidden; transition: transform .12s ease;
+}
+.mg-tile::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: hsl(var(--hue), 70%, 52%); }
+.mg-tile.pri-high   { --hue: var(--priority-high-hue); }
+.mg-tile.pri-medium { --hue: var(--priority-medium-hue); }
+.mg-tile.pri-low    { --hue: var(--priority-low-hue); }
+.mg-tile .mg-count { font-family: var(--font-title); font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--text-primary); }
+.mg-tile .mg-sub { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); }
+.mg-tile.empty { opacity: 0.45; }
+.mg-tile:active { transform: scale(0.97); }
+
+/* --- Drill-in full-screen list --- */
+.drill-panel {
+  position: fixed; inset: 0; z-index: 50; background: var(--bg-gradient);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .25s ease;
+}
+.drill-panel.open { transform: translateX(0); }
+.drill-head {
+  display: flex; align-items: center; gap: 10px; padding: 16px;
+  background: var(--bg-panel); border-bottom: 1px solid var(--border-color);
+}
+.drill-back {
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; font-size: 1.4rem; color: var(--text-primary); cursor: pointer;
+}
+.drill-title { font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; }
+.drill-list { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.drill-add {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border: 1px dashed var(--border-color); border-radius: var(--radius-md, 12px);
+  background: none; color: var(--primary); font-family: var(--font-body); font-weight: 600; cursor: pointer;
+}
+.drill-add:active { transform: scale(0.99); }
+.drill-empty { color: var(--text-muted); text-align: center; padding: 28px; }
+
+/* --- Title-first quick-add sheet --- */
+.qa-scrim {
+  position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.4);
+  opacity: 0; transition: opacity .2s;
+}
+.qa-scrim.open { opacity: 1; }
+.qa-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+  background: var(--bg-panel); border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  transform: translateY(110%); transition: transform .25s ease;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.3);
+}
+.qa-sheet.open { transform: translateY(0); }
+.qa-sheet h3 { font-family: var(--font-title); font-size: 1rem; margin-bottom: 12px; }
+.qa-sheet input {
+  width: 100%; min-height: 48px; padding: 12px 14px; font-size: 16px;
+  border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);
+  background: var(--bg-input); color: var(--text-primary); outline: none;
+}
+.qa-sheet input:focus { border-color: var(--primary); }
+.qa-ctx { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+.qa-ctx span { font-size: 0.7rem; background: var(--bg-input); padding: 6px 10px; border-radius: var(--radius-pill, 999px); color: var(--text-secondary); }
+.qa-more { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--text-secondary); font-weight: 600; font-size: 0.82rem; margin: 4px 2px 12px; cursor: pointer; }
+.qa-save { width: 100%; min-height: 48px; border: none; border-radius: var(--border-radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+.qa-save:active { transform: scale(0.99); }
+
+/* --- Bottom navigation (solid flat, centered FAB) --- */
 html.mobile-mode .mobile-bottom-nav {
-  display: flex;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
+  display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
   height: calc(64px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  justify-content: space-around;
-  align-items: center;
-  background: var(--bg-panel);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-color);
+  justify-content: space-around; align-items: center;
+  background: var(--bg-panel); border-top: 1px solid var(--border-color);
 }
 .bottom-nav-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-height: 48px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-size: 0.62rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color var(--transition-fast);
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; min-height: 52px; border: none; background: transparent; color: var(--text-muted);
+  font-family: var(--font-body); font-size: 0.66rem; font-weight: 600; cursor: pointer;
 }
-.bottom-nav-btn i { font-size: 1.3rem; }
+.bottom-nav-btn i { font-size: 1.35rem; }
+.bottom-nav-btn:active { transform: scale(0.97); }
 .bottom-nav-btn.active { color: var(--primary); }
 .bottom-nav-btn.bottom-nav-add {
-  flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  margin-top: -16px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
-  box-shadow: var(--glow-indigo), var(--shadow-md);
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%;
+  background: var(--primary); color: #fff; gap: 0;
 }
-.bottom-nav-btn.bottom-nav-add i { font-size: 1.6rem; }
+.bottom-nav-btn.bottom-nav-add i { font-size: 1.6rem; line-height: 1; display: block; }
 
-/* --- Modals become bottom sheets --- */
+/* --- Touch sizing on mobile --- */
+html.mobile-mode .form-input,
+html.mobile-mode .form-select,
+html.mobile-mode .form-textarea { font-size: 16px; }
+html.mobile-mode .form-input,
+html.mobile-mode .form-select { min-height: 44px; }
+html.mobile-mode .modal-close { width: 44px; height: 44px; }
+
+/* Add/Edit task modal as a bottom sheet on mobile */
 html.mobile-mode .modal-overlay { align-items: flex-end; padding: 0; }
 html.mobile-mode .modal-window {
-  width: 100%;
-  max-width: 100%;
-  max-height: 92vh;
-  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  width: 100%; max-width: 100%; max-height: 92vh;
+  border-radius: var(--radius-lg, 20px) var(--radius-lg, 20px) 0 0;
   transform: translateY(100%);
 }
 html.mobile-mode .modal-overlay.active .modal-window { transform: translateY(0); }
 html.mobile-mode .modal-body { max-height: calc(92vh - 150px); }
 
-/* --- Touch targets & input sizing (avoid iOS auto-zoom at <16px) --- */
-html.mobile-mode .view-btn,
-html.mobile-mode .theme-btn,
-html.mobile-mode .modal-close,
-html.mobile-mode .btn-secondary-sm,
-html.mobile-mode .filter-select { min-height: 44px; }
-html.mobile-mode .form-input,
-html.mobile-mode .form-select,
-html.mobile-mode .form-textarea,
-html.mobile-mode .search-box input,
-html.mobile-mode .subtask-add-input { font-size: 16px; }
-html.mobile-mode .form-input,
-html.mobile-mode .form-select { min-height: 44px; }
-
-/* Respect reduced-motion for the new transitions */
+/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  aside.sidebar,
-  .sidebar-scrim,
-  .modal-window { transition: none !important; }
+  .drill-panel, .qa-sheet, .qa-scrim, .modal-window,
+  .category-chip, .mg-tile, .bottom-nav-btn { transition: none !important; }
 }

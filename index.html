@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -123,11 +123,6 @@
       <!-- Single unified top bar -->
       <div class="top-bar">
 
-        <!-- Mobile-only: opens the sidebar as a slide-in drawer -->
-        <button type="button" class="mobile-hamburger-btn" id="mobile-hamburger-btn" aria-label="Open menu" aria-expanded="false">
-          <i class="ri-menu-line"></i>
-        </button>
-
         <!-- 1. Title + subtitle -->
         <div class="banner-welcome">
           <h2>Task Dashboard</h2>
@@ -194,10 +189,26 @@
           </button>
         </div>
 
-        <!-- View preview toggle: switch between desktop and mobile layout on a laptop -->
-        <button type="button" class="viewport-toggle-btn" id="viewport-toggle-btn" title="Toggle mobile preview" aria-label="Toggle mobile preview" aria-pressed="false">
+        <!-- Desktop/mobile preview toggle (renders mobile in a centered ~400px column) -->
+        <button type="button" class="viewport-toggle-btn" id="viewport-toggle-btn" title="Preview mobile" aria-label="Toggle mobile preview" aria-pressed="false">
           <i class="ri-smartphone-line"></i>
         </button>
+
+        <!-- Mobile-only: one-tap light/dark theme toggle -->
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch theme">
+          <i class="ri-moon-line"></i>
+        </button>
+
+        <!-- Mobile-only: account avatar + popover (sign out) -->
+        <div class="account-avatar-wrap">
+          <button type="button" class="account-avatar-btn" id="account-avatar-btn" aria-label="Account">?</button>
+          <div class="account-popover" id="account-popover" hidden>
+            <span class="account-popover-email" id="account-popover-email"></span>
+            <button type="button" class="account-popover-signout" id="account-popover-signout">
+              <i class="ri-logout-box-r-line"></i> Sign out
+            </button>
+          </div>
+        </div>
 
         <!-- 5. Add Task button -->
         <button type="button" class="primary-btn" id="open-task-modal-btn" aria-label="Create new task">
@@ -207,29 +218,22 @@
 
       </div>
 
+      <!-- Mobile-only: horizontal category chip row (quick category nav) -->
+      <div class="category-chips" id="category-chips" role="tablist" aria-label="Filter by category"></div>
+
       <!-- Workspace Body (Boards and Lists) -->
       <section class="content-body" id="workspace-body">
-        
-        <!-- 2D Priority-Status Matrix Board View -->
-        <div class="board-view" id="workspace-board" data-mobile-status="todo">
 
-          <!-- Mobile-only: status tabs (board collapses to one status column at a time) -->
-          <div class="board-mobile-tabs" id="board-mobile-tabs" role="tablist" aria-label="Task status">
-            <button type="button" class="board-tab active" data-status="todo" role="tab" aria-selected="true">
-              <span class="board-tab-dot" style="background-color: var(--primary);"></span>
-              <span class="board-tab-label">To Do</span>
-              <span class="board-tab-count" id="tab-todo-count">0</span>
-            </button>
-            <button type="button" class="board-tab" data-status="in-progress" role="tab" aria-selected="false">
-              <span class="board-tab-dot" style="background-color: var(--accent-cyan);"></span>
-              <span class="board-tab-label">In Progress</span>
-              <span class="board-tab-count" id="tab-progress-count">0</span>
-            </button>
-            <button type="button" class="board-tab" data-status="done" role="tab" aria-selected="false">
-              <span class="board-tab-dot" style="background-color: rgb(var(--priority-low-hue));"></span>
-              <span class="board-tab-label">Done</span>
-              <span class="board-tab-count" id="tab-done-count">0</span>
-            </button>
+        <!-- 2D Priority-Status Matrix Board View -->
+        <div class="board-view" id="workspace-board">
+
+          <!-- Mobile-only: 3x3 status/priority count grid. Tap a tile to drill in. -->
+          <div class="mobile-grid" id="mobile-grid" aria-label="Status and priority overview">
+            <div class="mg-corner">Pri / Status</div>
+            <div class="mg-colhead">To Do</div>
+            <div class="mg-colhead">In Prog</div>
+            <div class="mg-colhead">Done</div>
+            <!-- row labels + tiles injected by renderMobileGrid() -->
           </div>
 
           <!-- Column Headers Row -->
@@ -292,12 +296,28 @@
         </div>
 
       </section>
+
+      <!-- Mobile-only: drill-in full-screen list for one status/priority cell -->
+      <div class="drill-panel" id="drill-panel" hidden>
+        <div class="drill-head">
+          <button type="button" class="drill-back" id="drill-back" aria-label="Back to board"><i class="ri-arrow-left-line"></i></button>
+          <div class="drill-title" id="drill-title"></div>
+        </div>
+        <div class="drill-list" id="drill-list" role="list"></div>
+      </div>
     </main>
 
   </div>
 
-  <!-- Mobile drawer scrim: dims the app when the sidebar drawer is open -->
-  <div class="sidebar-scrim" id="sidebar-scrim" hidden></div>
+  <!-- Mobile-only: quick-add sheet + scrim -->
+  <div class="qa-scrim" id="qa-scrim" hidden></div>
+  <div class="qa-sheet" id="qa-sheet" hidden role="dialog" aria-label="Quick add task">
+    <h3>New task</h3>
+    <input type="text" id="qa-title" placeholder="What needs to be done?" autocomplete="off">
+    <div class="qa-ctx" id="qa-ctx"></div>
+    <button type="button" class="qa-more" id="qa-more"><i class="ri-arrow-down-s-line"></i> More options</button>
+    <button type="button" class="qa-save" id="qa-save">Save task</button>
+  </div>
 
   <!-- Mobile-only bottom navigation bar (primary actions) -->
   <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Primary">
@@ -305,20 +325,12 @@
       <i class="ri-grid-fill"></i>
       <span>Board</span>
     </button>
-    <button type="button" class="bottom-nav-btn" id="bottom-nav-list" aria-label="List view">
-      <i class="ri-align-justify"></i>
-      <span>List</span>
-    </button>
     <button type="button" class="bottom-nav-btn bottom-nav-add" id="bottom-nav-add" aria-label="Create new task">
       <i class="ri-add-fill"></i>
     </button>
-    <button type="button" class="bottom-nav-btn" id="bottom-nav-search" aria-label="Search tasks">
-      <i class="ri-search-line"></i>
-      <span>Search</span>
-    </button>
-    <button type="button" class="bottom-nav-btn" id="bottom-nav-menu" aria-label="Open menu">
-      <i class="ri-menu-line"></i>
-      <span>Menu</span>
+    <button type="button" class="bottom-nav-btn" id="bottom-nav-list" aria-label="List view">
+      <i class="ri-align-justify"></i>
+      <span>List</span>
     </button>
   </nav>
 
