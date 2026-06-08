@@ -637,11 +637,15 @@ function setCategoryFilter(catId) {
 // Render the horizontal category chip row (mobile quick category nav).
 function renderCategoryChips() {
   if (!DOM.categoryChips) return;
+  const countFor = id => id === 'all'
+    ? state.tasks.length
+    : state.tasks.filter(t => t.category === id).length;
   const chips = [{ id: 'all', name: 'All', color: 'var(--primary)' }]
     .concat(state.categories.map(c => ({ id: c.id, name: c.name, color: c.color })));
   DOM.categoryChips.innerHTML = chips.map(c =>
     `<button type="button" class="category-chip${state.filterCategory === c.id ? ' active' : ''}" data-cat="${c.id}">
        <span class="category-chip-dot" style="background:${c.color}"></span>${escapeHTML(c.name)}
+       <span class="category-chip-count">${countFor(c.id)}</span>
      </button>`
   ).join('');
 }

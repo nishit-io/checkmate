@@ -2064,6 +2064,16 @@ html.mobile-mode .category-chips {
 .category-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .category-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .category-chip.active .category-chip-dot { background: #fff !important; }
+.category-chip-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+.category-chip.active .category-chip-count { background: rgba(255, 255, 255, 0.25); color: #fff; }
 
 /* Content area: leave room for the fixed bottom nav */
 html.mobile-mode .content-body { padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); }
