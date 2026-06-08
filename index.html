@@ -89,22 +89,6 @@
         </div>
       </div>
 
-      <!-- Theme Selector Panel -->
-      <div class="theme-selector">
-        <span class="section-label">Theme</span>
-        <div class="theme-switch-group">
-          <button type="button" class="theme-btn" id="theme-light-btn" title="Switch to Light Theme" aria-label="Light theme">
-            <i class="ri-sun-line"></i>
-          </button>
-          <button type="button" class="theme-btn" id="theme-dark-btn" title="Switch to Dark Theme" aria-label="Dark theme">
-            <i class="ri-moon-line"></i>
-          </button>
-          <button type="button" class="theme-btn" id="theme-system-btn" title="Switch to System Theme" aria-label="System theme">
-            <i class="ri-computer-line"></i>
-          </button>
-        </div>
-      </div>
-
       <!-- Account / sign out -->
       <div class="account-panel" id="account-panel" hidden>
         <div class="account-meta">
@@ -194,27 +178,28 @@
           <i class="ri-smartphone-line"></i>
         </button>
 
-        <!-- Mobile-only: one-tap light/dark theme toggle -->
+        <!-- One-tap light/dark theme toggle (desktop + mobile) -->
         <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch theme">
           <i class="ri-moon-line"></i>
         </button>
-
-        <!-- Mobile-only: account avatar + popover (sign out) -->
-        <div class="account-avatar-wrap">
-          <button type="button" class="account-avatar-btn" id="account-avatar-btn" aria-label="Account">?</button>
-          <div class="account-popover" id="account-popover" hidden>
-            <span class="account-popover-email" id="account-popover-email"></span>
-            <button type="button" class="account-popover-signout" id="account-popover-signout">
-              <i class="ri-logout-box-r-line"></i> Sign out
-            </button>
-          </div>
-        </div>
 
         <!-- 5. Add Task button -->
         <button type="button" class="primary-btn" id="open-task-modal-btn" aria-label="Create new task">
           <i class="ri-add-fill"></i>
           <span>Add Task</span>
         </button>
+
+        <!-- Profile menu (avatar) — Profile / Settings / Sign out -->
+        <div class="profile-menu-wrap">
+          <button type="button" class="account-avatar-btn" id="account-avatar-btn" aria-label="Account" aria-haspopup="true">?</button>
+          <div class="account-popover" id="account-popover" hidden>
+            <div class="pm-who"><b id="account-popover-name">Your account</b><span class="account-popover-email" id="account-popover-email"></span></div>
+            <button type="button" id="pm-profile"><i class="ri-user-line"></i> Profile</button>
+            <button type="button" id="pm-settings"><i class="ri-settings-3-line"></i> Settings</button>
+            <div class="pm-sep"></div>
+            <button type="button" class="account-popover-signout pm-danger" id="account-popover-signout"><i class="ri-logout-box-r-line"></i> Sign out</button>
+          </div>
+        </div>
 
       </div>
 
@@ -443,6 +428,118 @@
           <button type="submit" class="btn-primary">Create Category</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 3. Profile Modal -->
+  <div class="modal-overlay" id="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <div class="modal-window" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="profile-modal-title">Profile</h2>
+        <button type="button" class="modal-close" id="profile-close-btn" aria-label="Close dialog"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-avatar-row">
+          <div class="profile-avatar-preview" id="profile-avatar-preview">?</div>
+          <div>
+            <label class="profile-color-label">Avatar colour</label>
+            <div class="profile-color-dots" id="profile-color-dots"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="profile-name">Display name</label>
+          <input type="text" id="profile-name" class="form-input" placeholder="Your name" maxlength="40">
+        </div>
+        <div class="form-group">
+          <label for="profile-email">Email</label>
+          <input type="email" id="profile-email" class="form-input" disabled>
+        </div>
+        <div class="form-group">
+          <label for="profile-timezone">Timezone</label>
+          <select id="profile-timezone" class="form-select"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-text" id="profile-cancel-btn">Cancel</button>
+        <button type="button" class="btn-primary" id="profile-save-btn">Save profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Settings Modal -->
+  <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="modal-window" style="max-width: 520px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="settings-modal-title">Settings</h2>
+        <button type="button" class="modal-close" id="settings-close-btn" aria-label="Close dialog"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="set-section">
+          <h3>Preferences</h3>
+          <div class="set-row">
+            <div class="lab"><b>Theme</b><span>Light, dark, or follow system</span></div>
+            <div class="seg" data-group="theme">
+              <button type="button" data-value="light">Light</button><button type="button" data-value="dark">Dark</button><button type="button" data-value="system">System</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Default view</b><span>What opens on launch</span></div>
+            <div class="seg" data-group="defaultView"><button type="button" data-value="board">Board</button><button type="button" data-value="list">List</button></div>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Default priority</b><span>For new tasks</span></div>
+            <select class="set-select" id="set-default-priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+          </div>
+        </div>
+        <div class="set-section">
+          <h3>Display</h3>
+          <div class="set-row">
+            <div class="lab"><b>Week starts on</b></div>
+            <div class="seg" data-group="weekStart"><button type="button" data-value="sun">Sun</button><button type="button" data-value="mon">Mon</button></div>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Date format</b></div>
+            <div class="seg" data-group="dateFormat"><button type="button" data-value="mmdd">MM/DD</button><button type="button" data-value="ddmm">DD/MM</button></div>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Density</b><span>Card spacing</span></div>
+            <div class="seg" data-group="density"><button type="button" data-value="comfortable">Comfortable</button><button type="button" data-value="compact">Compact</button></div>
+          </div>
+        </div>
+        <div class="set-section">
+          <h3>Behavior</h3>
+          <div class="set-row">
+            <div class="lab"><b>Confirm before delete</b></div>
+            <button type="button" class="toggle" id="set-confirm-delete" data-key="confirmDelete" role="switch" aria-label="Confirm before delete"></button>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Show completed tasks</b></div>
+            <button type="button" class="toggle" id="set-show-completed" data-key="showCompleted" role="switch" aria-label="Show completed tasks"></button>
+          </div>
+        </div>
+        <div class="set-section">
+          <h3>Account &amp; data</h3>
+          <div class="set-row">
+            <div class="lab"><b>Change password</b><span>Sends a reset email</span></div>
+            <button type="button" class="link-btn" id="set-change-pw">Send link</button>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Your data</b><span>Tasks &amp; categories (JSON)</span></div>
+            <div><button type="button" class="link-btn" id="set-export">Export</button> · <button type="button" class="link-btn" id="set-import">Import</button><input type="file" id="set-import-file" accept="application/json" hidden></div>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b>Sign out</b></div>
+            <button type="button" class="link-btn" id="set-signout">Sign out</button>
+          </div>
+          <div class="set-row">
+            <div class="lab"><b class="danger-txt">Delete account</b><span>Coming soon</span></div>
+            <button type="button" class="link-btn danger-txt" id="set-delete-account" disabled style="opacity:.5;cursor:not-allowed">Delete</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" id="settings-done-btn">Done</button>
+      </div>
     </div>
   </div>
 

@@ -87,16 +87,20 @@ let state = {
   searchQuery: '',
   selectedSidebarCategory: 'all', // 'all' | categoryId
   theme: 'light', // 'dark' | 'light' | 'system'
-  tempSubtasks: [] // Array of subtasks for current modal workspace
+  tempSubtasks: [], // Array of subtasks for current modal workspace
+
+  // Profile + settings (persisted to Supabase auth user_metadata; localStorage mirror)
+  profile: { displayName: '', avatarColor: '#6366f1', timezone: '' },
+  settings: {
+    defaultView: 'board', defaultPriority: 'medium', weekStart: 'sun',
+    dateFormat: 'mmdd', density: 'comfortable', confirmDelete: true, showCompleted: true
+  }
 };
 
 // --- DOM Cache References ---
 const DOM = {
   app: document.getElementById('app'),
-  themeLightBtn: document.getElementById('theme-light-btn'),
-  themeDarkBtn: document.getElementById('theme-dark-btn'),
-  themeSystemBtn: document.getElementById('theme-system-btn'),
-  
+
   navBoardView: document.getElementById('nav-board-view'),
   navListView: document.getElementById('nav-list-view'),
   viewBoardBtn: document.getElementById('view-board-btn'),
@@ -162,13 +166,43 @@ const DOM = {
   accountAvatar: document.getElementById('account-avatar'),
   signoutBtn: document.getElementById('signout-btn'),
 
-  // Mobile view: top-bar controls, chip row, matrix grid, drill-in, quick-add, nav
+  // Top-bar controls + profile menu (shared desktop + mobile)
   viewportToggleBtn: document.getElementById('viewport-toggle-btn'),
   themeToggleBtn: document.getElementById('theme-toggle-btn'),
+  profileMenuBtn: document.getElementById('account-avatar-btn'),
   accountAvatarBtn: document.getElementById('account-avatar-btn'),
-  accountPopover: document.getElementById('account-popover'),
+  profileMenu: document.getElementById('account-popover'),
+  pmName: document.getElementById('account-popover-name'),
+  pmEmail: document.getElementById('account-popover-email'),
   accountPopoverEmail: document.getElementById('account-popover-email'),
+  pmProfile: document.getElementById('pm-profile'),
+  pmSettings: document.getElementById('pm-settings'),
   accountPopoverSignout: document.getElementById('account-popover-signout'),
+
+  // Profile modal
+  profileModal: document.getElementById('profile-modal'),
+  profileName: document.getElementById('profile-name'),
+  profileEmail: document.getElementById('profile-email'),
+  profileTimezone: document.getElementById('profile-timezone'),
+  profileAvatarPreview: document.getElementById('profile-avatar-preview'),
+  profileColorDots: document.getElementById('profile-color-dots'),
+  profileSaveBtn: document.getElementById('profile-save-btn'),
+  profileCancelBtn: document.getElementById('profile-cancel-btn'),
+  profileCloseBtn: document.getElementById('profile-close-btn'),
+
+  // Settings modal
+  settingsModal: document.getElementById('settings-modal'),
+  settingsCloseBtn: document.getElementById('settings-close-btn'),
+  settingsDoneBtn: document.getElementById('settings-done-btn'),
+  setDefaultPriority: document.getElementById('set-default-priority'),
+  setConfirmDelete: document.getElementById('set-confirm-delete'),
+  setShowCompleted: document.getElementById('set-show-completed'),
+  setChangePw: document.getElementById('set-change-pw'),
+  setExport: document.getElementById('set-export'),
+  setImport: document.getElementById('set-import'),
+  setImportFile: document.getElementById('set-import-file'),
+  setSignout: document.getElementById('set-signout'),
+
   categoryChips: document.getElementById('category-chips'),
   mobileGrid: document.getElementById('mobile-grid'),
   drillPanel: document.getElementById('drill-panel'),
@@ -243,12 +277,13 @@ async function handleSession(session) {
     DOM.authOverlay.hidden = true;
     DOM.accountPanel.hidden = false;
     const email = session.user.email || '';
+    userEmail = email;
     DOM.accountEmail.textContent = email;
     DOM.accountAvatar.textContent = (email[0] || '?').toUpperCase();
-    if (DOM.accountAvatarBtn) DOM.accountAvatarBtn.textContent = (email[0] || '?').toUpperCase();
-    if (DOM.accountPopoverEmail) DOM.accountPopoverEmail.textContent = email;
+    loadProfileSettings(session.user.user_metadata || {});
 
     await loadCloudData();
+    applyProfile();
     renderApp();
     subscribeRealtime();
   } else {
@@ -281,6 +316,9 @@ function loadLocalData() {
   state.categories = savedCategories ? JSON.parse(savedCategories) : DEFAULT_CATEGORIES;
   state.theme = savedTheme ? savedTheme : 'light';
   state.activeView = savedView ? savedView : 'board';
+
+  loadProfileSettings();   // local mode: from localStorage
+  applyProfile();
 }
 
 async function loadCloudData() {
@@ -392,11 +430,9 @@ function applyTheme() {
   
   root.setAttribute('data-theme', activeTheme);
   
-  // Update theme button UI states
-  DOM.themeLightBtn.classList.toggle('active', state.theme === 'light');
-  DOM.themeDarkBtn.classList.toggle('active', state.theme === 'dark');
-  DOM.themeSystemBtn.classList.toggle('active', state.theme === 'system');
+  // Sync the one-tap top-bar toggle icon and (if open) the Settings theme control.
   syncThemeToggleIcon();
+  if (DOM.settingsModal && typeof setSeg === 'function') setSeg('theme', state.theme);
 }
 
 // Handle system theme updates dynamically
@@ -535,7 +571,8 @@ function renderDrillList() {
 // "More options" hands off to the full task modal. Contextual prefill from a cell.
 let qaPrefill = { priority: 'medium', status: 'todo' };
 
-function openQuickAdd(priority = 'medium', status = 'todo') {
+function openQuickAdd(priority, status = 'todo') {
+  if (!priority) priority = state.settings.defaultPriority || 'medium';
   qaPrefill = { priority, status };
   const catName = state.filterCategory !== 'all'
     ? (state.categories.find(c => c.id === state.filterCategory)?.name || '')
@@ -609,11 +646,193 @@ function renderCategoryChips() {
   ).join('');
 }
 
-// Account popover (mobile) — small dropdown from the avatar, no full-screen dim.
-function toggleAccountPopover(force) {
-  if (!DOM.accountPopover) return;
-  const open = force != null ? force : DOM.accountPopover.hidden;
-  DOM.accountPopover.hidden = !open;
+
+// --- Profile & Settings -----------------------------------------------------
+const AVATAR_COLORS = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4'];
+const TIMEZONES = [
+  '(GMT-08:00) Pacific', '(GMT-05:00) Eastern', '(GMT+00:00) UTC',
+  '(GMT+01:00) Central Europe', '(GMT+03:00) Moscow', '(GMT+04:00) Gulf',
+  '(GMT+05:30) India Standard Time', '(GMT+07:00) Bangkok',
+  '(GMT+08:00) Singapore', '(GMT+09:00) Tokyo', '(GMT+10:00) Sydney'
+];
+let userEmail = '';
+
+// Load profile + settings from cloud user_metadata (or localStorage in local mode).
+function loadProfileSettings(meta) {
+  let p = {}, s = {};
+  if (meta) {
+    p = { displayName: meta.display_name || '', avatarColor: meta.avatar_color || '', timezone: meta.timezone || '' };
+    s = meta.settings || {};
+  } else {
+    try { p = JSON.parse(localStorage.getItem('checkmate_profile') || '{}'); } catch (_) {}
+    try { s = JSON.parse(localStorage.getItem('checkmate_settings') || '{}'); } catch (_) {}
+  }
+  state.profile = { ...state.profile, ...p };
+  if (!state.profile.avatarColor) state.profile.avatarColor = AVATAR_COLORS[0];
+  state.settings = { ...state.settings, ...s };
+  // On a fresh browser (no saved view), open in the preferred default view.
+  if (!localStorage.getItem('checkmate_view')) state.activeView = state.settings.defaultView;
+  applyDensity();
+}
+
+// Persist profile + settings: cloud -> user_metadata; always mirror to localStorage.
+function saveProfileSettings() {
+  localStorage.setItem('checkmate_profile', JSON.stringify(state.profile));
+  localStorage.setItem('checkmate_settings', JSON.stringify(state.settings));
+  if (CLOUD && DB.Auth.getUser()) {
+    DB.Auth.updateUser({
+      display_name: state.profile.displayName,
+      avatar_color: state.profile.avatarColor,
+      timezone: state.profile.timezone,
+      settings: state.settings
+    }).catch(err => console.error('Save profile/settings failed:', err));
+  }
+}
+
+function applyDensity() {
+  document.documentElement.classList.toggle('density-compact', state.settings.density === 'compact');
+}
+
+// Avatar text = first letter of display name, else email; color from profile.
+function applyProfile() {
+  const initial = (state.profile.displayName || userEmail || '?').trim().charAt(0).toUpperCase() || '?';
+  const color = state.profile.avatarColor || AVATAR_COLORS[0];
+  [DOM.profileMenuBtn, DOM.accountAvatarBtn].forEach(el => {
+    if (el) { el.textContent = initial; el.style.background = color; }
+  });
+  if (DOM.pmName) DOM.pmName.textContent = state.profile.displayName || 'Your account';
+  if (DOM.pmEmail) DOM.pmEmail.textContent = userEmail;
+  if (DOM.accountPopoverEmail) DOM.accountPopoverEmail.textContent = userEmail;
+}
+
+// Profile dropdown menu (desktop + mobile share the same menu element).
+function toggleProfileMenu(force) {
+  if (!DOM.profileMenu) return;
+  const open = force != null ? force : DOM.profileMenu.hidden;
+  DOM.profileMenu.hidden = !open;
+}
+
+// --- Profile modal ---
+let tempAvatarColor = '#6366f1';
+function openProfileModal() {
+  toggleProfileMenu(false);
+  tempAvatarColor = state.profile.avatarColor || AVATAR_COLORS[0];
+  DOM.profileName.value = state.profile.displayName || '';
+  DOM.profileEmail.value = userEmail;
+  // timezone select
+  DOM.profileTimezone.innerHTML = TIMEZONES
+    .map(tz => `<option${tz === state.profile.timezone ? ' selected' : ''}>${tz}</option>`).join('');
+  if (state.profile.timezone && !TIMEZONES.includes(state.profile.timezone)) {
+    DOM.profileTimezone.insertAdjacentHTML('afterbegin', `<option selected>${escapeHTML(state.profile.timezone)}</option>`);
+  }
+  renderAvatarDots();
+  openModal(DOM.profileModal);
+}
+function renderAvatarDots() {
+  DOM.profileAvatarPreview.textContent = (DOM.profileName.value || userEmail || '?').charAt(0).toUpperCase() || '?';
+  DOM.profileAvatarPreview.style.background = tempAvatarColor;
+  DOM.profileColorDots.innerHTML = AVATAR_COLORS.map(c =>
+    `<button type="button" class="cdot${c === tempAvatarColor ? ' sel' : ''}" data-color="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`
+  ).join('');
+}
+function saveProfile() {
+  state.profile.displayName = DOM.profileName.value.trim();
+  state.profile.timezone = DOM.profileTimezone.value;
+  state.profile.avatarColor = tempAvatarColor;
+  saveProfileSettings();
+  applyProfile();
+  closeModal(DOM.profileModal);
+}
+
+// --- Settings modal ---
+function openSettingsModal() {
+  toggleProfileMenu(false);
+  syncSettingsControls();
+  openModal(DOM.settingsModal);
+}
+function setSeg(group, value) {
+  DOM.settingsModal.querySelectorAll(`.seg[data-group="${group}"] button`).forEach(b =>
+    b.classList.toggle('on', b.dataset.value === value));
+}
+function syncSettingsControls() {
+  setSeg('theme', state.theme);
+  setSeg('defaultView', state.settings.defaultView);
+  setSeg('weekStart', state.settings.weekStart);
+  setSeg('dateFormat', state.settings.dateFormat);
+  setSeg('density', state.settings.density);
+  DOM.setDefaultPriority.value = state.settings.defaultPriority;
+  DOM.setConfirmDelete.classList.toggle('on', state.settings.confirmDelete);
+  DOM.setShowCompleted.classList.toggle('on', state.settings.showCompleted);
+}
+
+// Delegated handler for the Settings modal: segmented controls, toggles, links.
+function handleSettingsClick(e) {
+  const segBtn = e.target.closest('.seg button');
+  if (segBtn) {
+    const group = segBtn.parentElement.dataset.group;
+    const val = segBtn.dataset.value;
+    if (group === 'theme') { state.theme = val; applyTheme(); }
+    else { state.settings[group] = val; }
+    setSeg(group, val);
+    if (group === 'density') applyDensity();
+    if (group === 'dateFormat' || group === 'weekStart') renderTasks();
+    saveProfileSettings();
+    return;
+  }
+  const toggle = e.target.closest('.toggle');
+  if (toggle) {
+    const key = toggle.dataset.key;
+    state.settings[key] = !state.settings[key];
+    toggle.classList.toggle('on', state.settings[key]);
+    saveProfileSettings();
+    if (key === 'showCompleted') renderTasks();
+    return;
+  }
+  if (e.target.closest('#set-change-pw')) {
+    if (!CLOUD || !userEmail) { alert('Password reset needs a cloud account.'); return; }
+    DB.Auth.resetPassword(userEmail)
+      .then(() => alert('Password reset link sent to ' + userEmail))
+      .catch(err => alert('Could not send reset link: ' + err.message));
+    return;
+  }
+  if (e.target.closest('#set-export')) { exportData(); return; }
+  if (e.target.closest('#set-import')) { DOM.setImportFile.click(); return; }
+  if (e.target.closest('#set-signout')) { closeModal(DOM.settingsModal); DB.Auth.signOut(); return; }
+}
+
+// Download all tasks + categories as a JSON backup.
+function exportData() {
+  const payload = { exportedAt: new Date().toISOString(), categories: state.categories, tasks: state.tasks };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `checkmate-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Import a previously-exported JSON file.
+async function handleSettingsImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    if (CLOUD && DB.Auth.getUser()) {
+      await DB.importData(payload);
+      const data = await DB.fetchAll();
+      state.categories = data.categories; state.tasks = data.tasks;
+    } else {
+      // Local mode: merge with fresh ids.
+      (payload.categories || []).forEach(c => { if (!state.categories.some(x => x.name === c.name)) state.categories.push({ ...c, id: genId() }); });
+      (payload.tasks || []).forEach(t => state.tasks.push({ ...t, id: genId() }));
+      saveData();
+    }
+    renderApp();
+    alert('Import complete.');
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+  }
+  e.target.value = '';
 }
 
 // --- Category Modal Presets Picker ---
@@ -765,12 +984,12 @@ function getNextOrderValue(status, priority) {
 }
 
 function deleteTask(id) {
-  if (confirm('Are you sure you want to permanently delete this task?')) {
-    state.tasks = state.tasks.filter(t => t.id !== id);
-    persistTaskDelete(id);
-    renderTasks();
-    updateStats();
-  }
+  // Settings: skip the confirm dialog when "confirm before delete" is off.
+  if (state.settings.confirmDelete && !confirm('Are you sure you want to permanently delete this task?')) return;
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  persistTaskDelete(id);
+  renderTasks();
+  updateStats();
 }
 
 function toggleSubtaskState(taskId, subtaskId, isChecked) {
@@ -1068,11 +1287,14 @@ function getFilteredTasks() {
     
     // 3. Search query filter (matches title or description)
     const query = state.searchQuery.toLowerCase().trim();
-    const matchesSearch = !query || 
-      t.title.toLowerCase().includes(query) || 
+    const matchesSearch = !query ||
+      t.title.toLowerCase().includes(query) ||
       (t.description && t.description.toLowerCase().includes(query));
-      
-    return matchesSidebar && matchesDropdown && matchesSearch;
+
+    // Settings: optionally hide completed tasks
+    const matchesCompleted = state.settings.showCompleted || t.status !== 'done';
+
+    return matchesSidebar && matchesDropdown && matchesSearch && matchesCompleted;
   });
 }
 
@@ -1285,9 +1507,11 @@ function createTaskCard(task, isListView = false) {
     today.setHours(0,0,0,0);
     const due = new Date(task.dueDate + 'T00:00:00'); // set local midnight
     
-    // Formatting helper
-    dueDateText = due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    
+    // Formatting helper — honor the date-format setting (MM/DD vs DD/MM)
+    const pad = n => String(n).padStart(2, '0');
+    const mm = pad(due.getMonth() + 1), dd = pad(due.getDate());
+    dueDateText = state.settings.dateFormat === 'ddmm' ? `${dd}/${mm}` : `${mm}/${dd}`;
+
     if (due < today && task.status !== 'done') {
       isOverdue = true;
       dueDateText = `Overdue: ${dueDateText}`;
@@ -1487,7 +1711,7 @@ function openTaskModal(taskId = null) {
     // Set default due date to today
     DOM.taskFormDueDate.value = new Date().toISOString().split('T')[0];
     DOM.taskFormStatus.value = 'todo';
-    DOM.taskFormPriority.value = 'medium';
+    DOM.taskFormPriority.value = state.settings.defaultPriority || 'medium';
     DOM.taskFormCategory.value = state.categories.length > 0 ? state.categories[0].id : '';
     
     state.tempSubtasks = [];
@@ -1643,11 +1867,6 @@ function getDragAfterElement(container, y) {
 
 // --- Event Listeners Setup ---
 function setupEventListeners() {
-  // Theme selection buttons
-  DOM.themeLightBtn.addEventListener('click', () => { state.theme = 'light'; saveData(); applyTheme(); });
-  DOM.themeDarkBtn.addEventListener('click', () => { state.theme = 'dark'; saveData(); applyTheme(); });
-  DOM.themeSystemBtn.addEventListener('click', () => { state.theme = 'system'; saveData(); applyTheme(); });
-
   // Navigation Sidebar Item toggling
   DOM.navBoardView.addEventListener('click', () => setView('board'));
   DOM.navListView.addEventListener('click', () => setView('list'));
@@ -1661,24 +1880,36 @@ function setupEventListeners() {
   DOM.viewportToggleBtn.addEventListener('click', toggleViewport);
   MOBILE_MQ.addEventListener('change', applyViewport);
 
-  // One-tap light/dark theme toggle (top bar).
+  // One-tap light/dark theme toggle (top bar, desktop + mobile).
   DOM.themeToggleBtn.addEventListener('click', toggleTheme);
 
-  // Account popover (avatar in top bar). Toggles a small dropdown; clicking
-  // elsewhere closes it. No full-screen dim.
-  DOM.accountAvatarBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleAccountPopover();
-  });
-  DOM.accountPopoverSignout.addEventListener('click', () => {
-    toggleAccountPopover(false);
-    DB.Auth.signOut();
-  });
+  // Profile menu (avatar) — Profile / Settings / Sign out. Outside-click closes.
+  DOM.profileMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleProfileMenu(); });
+  DOM.pmProfile.addEventListener('click', openProfileModal);
+  DOM.pmSettings.addEventListener('click', openSettingsModal);
+  DOM.accountPopoverSignout.addEventListener('click', () => { toggleProfileMenu(false); DB.Auth.signOut(); });
   document.addEventListener('click', (e) => {
-    if (!DOM.accountPopover.hidden && !e.target.closest('.account-popover, #account-avatar-btn')) {
-      toggleAccountPopover(false);
+    if (!DOM.profileMenu.hidden && !e.target.closest('.account-popover, #account-avatar-btn')) {
+      toggleProfileMenu(false);
     }
   });
+
+  // Profile modal
+  DOM.profileCloseBtn.addEventListener('click', () => closeModal(DOM.profileModal));
+  DOM.profileCancelBtn.addEventListener('click', () => closeModal(DOM.profileModal));
+  DOM.profileSaveBtn.addEventListener('click', saveProfile);
+  DOM.profileName.addEventListener('input', renderAvatarDots);
+  DOM.profileColorDots.addEventListener('click', (e) => {
+    const dot = e.target.closest('.cdot');
+    if (dot) { tempAvatarColor = dot.dataset.color; renderAvatarDots(); }
+  });
+
+  // Settings modal
+  DOM.settingsCloseBtn.addEventListener('click', () => closeModal(DOM.settingsModal));
+  DOM.settingsDoneBtn.addEventListener('click', () => closeModal(DOM.settingsModal));
+  DOM.settingsModal.addEventListener('click', handleSettingsClick);
+  DOM.setDefaultPriority.addEventListener('change', () => { state.settings.defaultPriority = DOM.setDefaultPriority.value; saveProfileSettings(); });
+  DOM.setImportFile.addEventListener('change', handleSettingsImport);
 
   // Category chip row (mobile quick category nav).
   DOM.categoryChips.addEventListener('click', (e) => {

@@ -100,6 +100,18 @@
 
     signOut() {
       return client.auth.signOut();
+    },
+
+    // Merge fields into the user's auth user_metadata (profile + settings).
+    updateUser(data) {
+      return client.auth.updateUser({ data });
+    },
+
+    // Send a password-reset email to the given address.
+    resetPassword(email) {
+      return client.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
     }
   };
 
