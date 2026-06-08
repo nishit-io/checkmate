@@ -918,6 +918,7 @@ main.main-content {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overflow-x: hidden;   /* overflow-y:auto makes overflow-x compute to auto; pin it */
   transition: background var(--transition-fast);
   min-height: 140px;
 }
@@ -934,6 +935,10 @@ main.main-content {
   flex-direction: column;
   gap: 14px;
 }
+
+/* Let multi-column card grids shrink: 1fr tracks default to min-width:auto,
+   which can exceed the cell by a few px and create a horizontal scrollbar. */
+.cards-container > * { min-width: 0; }
 
 
 /* --- Multi-column card layout within each status cell ---
