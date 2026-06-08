@@ -800,7 +800,7 @@ main.main-content {
 
 .matrix-header-row {
   display: grid;
-  grid-template-columns: 140px repeat(3, 1fr);
+  grid-template-columns: 140px repeat(4, 1fr);
   gap: 16px;
   align-items: center;
 }
@@ -850,7 +850,7 @@ main.main-content {
 
 .matrix-row {
   display: grid;
-  grid-template-columns: 140px repeat(3, 1fr);
+  grid-template-columns: 140px repeat(4, 1fr);
   gap: 16px;
   min-height: 180px;
 }
@@ -2084,7 +2084,7 @@ html.mobile-mode .matrix-row { display: none; }
 
 /* --- Mobile matrix count grid (Variant B tiles) --- */
 html.mobile-mode .mobile-grid {
-  display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 8px;
+  display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 8px;
 }
 .mg-corner, .mg-colhead {
   font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;

@@ -147,6 +147,7 @@ const DOM = {
   workspaceList: document.getElementById('workspace-list'),
   
 
+  backlogCount: document.getElementById('backlog-count'),
   todoCount: document.getElementById('todo-count'),
   progressCount: document.getElementById('progress-count'),
   doneCount: document.getElementById('done-count'),
@@ -499,7 +500,7 @@ function syncThemeToggleIcon() {
 
 // Mobile board: 3x3 grid of status/priority count tiles built from filtered tasks.
 const MOBILE_PRI = [['high', 'High'], ['medium', 'Med'], ['low', 'Low']];
-const MOBILE_ST = [['todo', 'To Do'], ['in-progress', 'In Prog'], ['done', 'Done']];
+const MOBILE_ST = [['backlog', 'Backlog'], ['todo', 'To Do'], ['in-progress', 'In Prog'], ['done', 'Done']];
 
 function renderMobileGrid() {
   const grid = DOM.mobileGrid;
@@ -527,7 +528,7 @@ function renderMobileGrid() {
 // Drill-in: full-screen list of one status/priority intersection.
 let drillCell = null; // { priority, status }
 const PRI_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
-const ST_LABEL = { todo: 'To Do', 'in-progress': 'In Progress', done: 'Done' };
+const ST_LABEL = { backlog: 'Backlog', todo: 'To Do', 'in-progress': 'In Progress', done: 'Done' };
 
 function openDrill(priority, status) {
   drillCell = { priority, status };
@@ -569,9 +570,9 @@ function renderDrillList() {
 
 // Title-first quick-add sheet (mobile). Defaults To Do / Medium / current category;
 // "More options" hands off to the full task modal. Contextual prefill from a cell.
-let qaPrefill = { priority: 'medium', status: 'todo' };
+let qaPrefill = { priority: 'medium', status: 'backlog' };
 
-function openQuickAdd(priority, status = 'todo') {
+function openQuickAdd(priority, status = 'backlog') {
   if (!priority) priority = state.settings.defaultPriority || 'medium';
   qaPrefill = { priority, status };
   const catName = state.filterCategory !== 'all'
@@ -1316,7 +1317,7 @@ function renderTasks() {
     const sortedFiltered = [...filtered].sort((a, b) => (a.order || 0) - (b.order || 0));
     
     // Counters
-    let colCounts = { todo: 0, 'in-progress': 0, done: 0 };
+    let colCounts = { backlog: 0, todo: 0, 'in-progress': 0, done: 0 };
     let rowCounts = { high: 0, medium: 0, low: 0 };
 
     sortedFiltered.forEach(t => {
@@ -1330,6 +1331,7 @@ function renderTasks() {
     });
     
     // Update column counters (desktop matrix headers)
+    if (DOM.backlogCount) DOM.backlogCount.textContent = colCounts.backlog;
     DOM.todoCount.textContent = colCounts.todo;
     DOM.progressCount.textContent = colCounts['in-progress'];
     DOM.doneCount.textContent = colCounts.done;
@@ -1588,6 +1590,7 @@ function createTaskCard(task, isListView = false) {
       <!-- List View status button quick togglers -->
       ${isListView ? `
         <div class="view-toggle-group" style="padding: 2px; border-radius: 4px;">
+          <button type="button" class="view-btn quick-status-btn" data-status="backlog" ${task.status === 'backlog' ? 'style="color: #64748b; font-weight:bold"' : ''} title="Backlog">B</button>
           <button type="button" class="view-btn quick-status-btn" data-status="todo" ${task.status === 'todo' ? 'style="color: var(--primary); font-weight:bold"' : ''} title="To Do">T</button>
           <button type="button" class="view-btn quick-status-btn" data-status="in-progress" ${task.status === 'in-progress' ? 'style="color: var(--accent-cyan); font-weight:bold"' : ''} title="In Progress">P</button>
           <button type="button" class="view-btn quick-status-btn" data-status="done" ${task.status === 'done' ? 'style="color: var(--priority-low-hue); font-weight:bold"' : ''} title="Done">D</button>
@@ -1714,7 +1717,7 @@ function openTaskModal(taskId = null) {
     
     // Set default due date to today
     DOM.taskFormDueDate.value = new Date().toISOString().split('T')[0];
-    DOM.taskFormStatus.value = 'todo';
+    DOM.taskFormStatus.value = 'backlog';
     DOM.taskFormPriority.value = state.settings.defaultPriority || 'medium';
     DOM.taskFormCategory.value = state.categories.length > 0 ? state.categories[0].id : '';
     

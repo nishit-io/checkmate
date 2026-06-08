@@ -24,7 +24,7 @@ create table if not exists public.tasks (
   description text not null default '',
   category_id uuid references public.categories (id) on delete set null,
   priority    text not null default 'medium' check (priority in ('low','medium','high')),
-  status      text not null default 'todo'    check (status in ('todo','in-progress','done')),
+  status      text not null default 'backlog' check (status in ('backlog','todo','in-progress','done')),
   due_date    date,
   subtasks    jsonb not null default '[]'::jsonb,
   sort_order  double precision not null default 0,

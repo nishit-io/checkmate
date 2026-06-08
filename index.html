@@ -215,6 +215,7 @@
           <!-- Mobile-only: 3x3 status/priority count grid. Tap a tile to drill in. -->
           <div class="mobile-grid" id="mobile-grid" aria-label="Status and priority overview">
             <div class="mg-corner">Pri / Status</div>
+            <div class="mg-colhead">Backlog</div>
             <div class="mg-colhead">To Do</div>
             <div class="mg-colhead">In Prog</div>
             <div class="mg-colhead">Done</div>
@@ -225,6 +226,10 @@
           <div class="matrix-header-row">
             <div class="matrix-corner-cell">
               <span class="matrix-corner-label">Priority / Status</span>
+            </div>
+            <div class="matrix-column-header">
+              <span class="column-title"><span class="column-dot" style="background-color: #64748b;"></span>Backlog</span>
+              <span class="column-count" id="backlog-count">0</span>
             </div>
             <div class="matrix-column-header">
               <span class="column-title"><span class="column-dot" style="background-color: var(--primary);"></span>To Do</span>
@@ -246,6 +251,7 @@
               <span class="matrix-row-label">High</span>
               <span class="matrix-row-count" id="high-count">0</span>
             </div>
+            <div class="matrix-cell cards-container" data-status="backlog" data-status-label="Backlog" data-priority="high" role="list"></div>
             <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="high" role="list"></div>
             <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="high" role="list"></div>
             <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="high" role="list"></div>
@@ -257,6 +263,7 @@
               <span class="matrix-row-label">Medium</span>
               <span class="matrix-row-count" id="medium-count">0</span>
             </div>
+            <div class="matrix-cell cards-container" data-status="backlog" data-status-label="Backlog" data-priority="medium" role="list"></div>
             <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="medium" role="list"></div>
             <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="medium" role="list"></div>
             <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="medium" role="list"></div>
@@ -268,6 +275,7 @@
               <span class="matrix-row-label">Low</span>
               <span class="matrix-row-count" id="low-count">0</span>
             </div>
+            <div class="matrix-cell cards-container" data-status="backlog" data-status-label="Backlog" data-priority="low" role="list"></div>
             <div class="matrix-cell cards-container" data-status="todo" data-status-label="To Do" data-priority="low" role="list"></div>
             <div class="matrix-cell cards-container" data-status="in-progress" data-status-label="In Progress" data-priority="low" role="list"></div>
             <div class="matrix-cell cards-container" data-status="done" data-status-label="Done" data-priority="low" role="list"></div>
@@ -369,7 +377,8 @@
             <div class="form-group">
               <label for="task-form-status">Initial Status</label>
               <select id="task-form-status" class="form-select">
-                <option value="todo" selected>To Do</option>
+                <option value="backlog" selected>Backlog</option>
+                <option value="todo">To Do</option>
                 <option value="in-progress">In Progress</option>
                 <option value="done">Completed</option>
               </select>
