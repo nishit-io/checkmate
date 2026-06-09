@@ -94,7 +94,11 @@ let state = {
   settings: {
     defaultView: 'board', defaultPriority: 'medium', weekStart: 'sun',
     dateFormat: 'mmdd', density: 'comfortable', confirmDelete: true, showCompleted: true
-  }
+  },
+
+  // Task pick-rank: { taskId: { r: 1..4, cell: "status:priority" } } — per-task
+  // pick order within its intersection cell.
+  taskRanks: {}
 };
 
 // --- DOM Cache References ---
@@ -169,6 +173,7 @@ const DOM = {
 
   // Top-bar controls + profile menu (shared desktop + mobile)
   viewportToggleBtn: document.getElementById('viewport-toggle-btn'),
+  sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'),
   themeToggleBtn: document.getElementById('theme-toggle-btn'),
   profileMenuBtn: document.getElementById('account-avatar-btn'),
   accountAvatarBtn: document.getElementById('account-avatar-btn'),
@@ -241,6 +246,7 @@ function genId() {
 function boot() {
   applyTheme();
   applyViewport();
+  applySidebar();
   setupEventListeners();
   setupPresetColorsPicker();
   setupAuthListeners();
@@ -474,6 +480,24 @@ function toggleViewport() {
   applyViewport();
 }
 
+// Collapsible sidebar: 'sidebar-collapsed' on #app shrinks the grid's first
+// column to a slim icon rail, giving the board more width. Persisted per device.
+let sidebarCollapsed = localStorage.getItem('checkmate_sidebar_collapsed') === '1';
+
+function applySidebar() {
+  if (DOM.app) DOM.app.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+  if (DOM.sidebarToggleBtn) {
+    DOM.sidebarToggleBtn.setAttribute('aria-pressed', String(sidebarCollapsed));
+    DOM.sidebarToggleBtn.title = sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  }
+}
+
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  localStorage.setItem('checkmate_sidebar_collapsed', sidebarCollapsed ? '1' : '0');
+  applySidebar();
+}
+
 // Resolve the theme actually painted (handles the 'system' setting).
 function resolveActiveTheme() {
   if (state.theme === 'system') {
@@ -675,6 +699,10 @@ function loadProfileSettings(meta) {
   state.profile = { ...state.profile, ...p };
   if (!state.profile.avatarColor) state.profile.avatarColor = AVATAR_COLORS[0];
   state.settings = { ...state.settings, ...s };
+  let ranks = {};
+  if (meta) ranks = meta.taskRanks || {};
+  else { try { ranks = JSON.parse(localStorage.getItem('checkmate_task_ranks') || '{}'); } catch (_) {} }
+  state.taskRanks = ranks && typeof ranks === 'object' ? ranks : {};
   // On a fresh browser (no saved view), open in the preferred default view.
   if (!localStorage.getItem('checkmate_view')) state.activeView = state.settings.defaultView;
   applyDensity();
@@ -684,12 +712,14 @@ function loadProfileSettings(meta) {
 function saveProfileSettings() {
   localStorage.setItem('checkmate_profile', JSON.stringify(state.profile));
   localStorage.setItem('checkmate_settings', JSON.stringify(state.settings));
+  localStorage.setItem('checkmate_task_ranks', JSON.stringify(state.taskRanks));
   if (CLOUD && DB.Auth.getUser()) {
     DB.Auth.updateUser({
       display_name: state.profile.displayName,
       avatar_color: state.profile.avatarColor,
       timezone: state.profile.timezone,
-      settings: state.settings
+      settings: state.settings,
+      taskRanks: state.taskRanks
     }).catch(err => console.error('Save profile/settings failed:', err));
   }
 }
@@ -1303,18 +1333,80 @@ function getFilteredTasks() {
   });
 }
 
+// --- Task pick-rank ---------------------------------------------------------
+// Per-task pick order (1=do first .. 4) scoped to the task's intersection cell
+// (status×priority). 0 = unranked. state.taskRanks = { id: { r, cell } }.
+const cellKey = (status, priority) => status + ':' + priority;
+const rankOf = (id) => (state.taskRanks[id] ? state.taskRanks[id].r : 0);
+
+// Runs every render: drop ranks for deleted/moved tasks (move → reset), then
+// renumber each cell's surviving ranked tasks 1..k by current rank. This is the
+// auto-bump: a departed task's slot closes and higher ranks shift up.
+function reconcileTaskRanks() {
+  let changed = false;
+  const byCell = {};
+  for (const id of Object.keys(state.taskRanks)) {
+    const t = state.tasks.find(x => x.id === id);
+    const e = state.taskRanks[id];
+    if (!t || cellKey(t.status, t.priority) !== e.cell) { delete state.taskRanks[id]; changed = true; continue; }
+    (byCell[e.cell] = byCell[e.cell] || []).push([id, e.r]);
+  }
+  for (const cell of Object.keys(byCell)) {
+    byCell[cell].sort((a, b) => a[1] - b[1]).forEach(([id], i) => {
+      if (state.taskRanks[id].r !== i + 1) { state.taskRanks[id].r = i + 1; changed = true; }
+    });
+  }
+  return changed;
+}
+
+// Assign a rank to a task. 0 clears. Unique within the task's cell → evict.
+function setTaskRank(id, rank) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  const cell = cellKey(t.status, t.priority);
+  if (!rank) {
+    delete state.taskRanks[id];
+  } else {
+    if (rank > 4) rank = 4;
+    for (const k of Object.keys(state.taskRanks)) {
+      const e = state.taskRanks[k];
+      if (k !== id && e.cell === cell && e.r === rank) delete state.taskRanks[k];
+    }
+    state.taskRanks[id] = { r: rank, cell };
+  }
+  saveProfileSettings();
+  renderTasks();
+}
+
+// Order a cell's tasks: ranked (1→4) → unranked by due date (soonest) → no-due by drag order.
+function sortCellTasks(list) {
+  return [...list].sort((a, b) => {
+    const ra = rankOf(a.id), rb = rankOf(b.id);
+    if (ra && rb) return ra - rb;
+    if (ra) return -1;
+    if (rb) return 1;
+    const da = a.dueDate || '', db = b.dueDate || '';
+    if (da && db) return da < db ? -1 : da > db ? 1 : 0;
+    if (da) return -1;
+    if (db) return 1;
+    return (a.order || 0) - (b.order || 0);
+  });
+}
+
 function renderTasks() {
+  if (reconcileTaskRanks()) saveProfileSettings();
   const filtered = getFilteredTasks();
-  
+
   if (state.activeView === 'board') {
     // Clear all matrix cells
     const cells = document.querySelectorAll('.matrix-cell');
     cells.forEach(cell => {
       cell.innerHTML = '';
     });
-    
-    // Sort filtered tasks by order
-    const sortedFiltered = [...filtered].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    // Per-cell order: ranked (1→4) → unranked by due date → no-due by drag order.
+    // (intra-cell relative order is what appendChild uses; cross-cell order is moot)
+    const sortedFiltered = sortCellTasks(filtered);
     
     // Counters
     let colCounts = { backlog: 0, todo: 0, 'in-progress': 0, done: 0 };
@@ -1531,8 +1623,17 @@ function createTaskCard(task, isListView = false) {
   const completedSubtasks = task.subtasks ? task.subtasks.filter(s => s.completed).length : 0;
   const progressPercent = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
 
+  // Pick-rank (per task, within its cell). Board/drill = editable strip; list = read-only badge.
+  const rank = rankOf(task.id);
+  if (rank > 0) card.classList.add('ranked');
+  let rankStrip = '';
+  for (let n = 0; n <= 4; n++) {
+    rankStrip += `<button type="button" class="rk${n === rank && n > 0 ? ' active' : ''}${n === 0 ? ' zero' : ''}" data-rank="${n}" title="${n === 0 ? 'Clear rank' : 'Pick order ' + n}">${n === 0 ? '–' : n}</button>`;
+  }
+
   // Build card markup
   card.innerHTML = `
+    ${rank > 0 ? `<span class="rank-corner">${rank}</span>` : ''}
     <div class="card-header">
       <div class="card-tags">
         <span class="tag-badge" style="background-color: ${categoryObj.color}22; color: ${categoryObj.color}; border: 1px solid ${categoryObj.color}44;">
@@ -1589,6 +1690,7 @@ function createTaskCard(task, isListView = false) {
       
       <!-- List View status button quick togglers -->
       ${isListView ? `
+        ${rank > 0 ? `<span class="rank-badge-ro">#${rank}</span>` : ''}
         <div class="view-toggle-group" style="padding: 2px; border-radius: 4px;">
           <button type="button" class="view-btn quick-status-btn" data-status="backlog" ${task.status === 'backlog' ? 'style="color: #64748b; font-weight:bold"' : ''} title="Backlog">B</button>
           <button type="button" class="view-btn quick-status-btn" data-status="todo" ${task.status === 'todo' ? 'style="color: var(--primary); font-weight:bold"' : ''} title="To Do">T</button>
@@ -1596,9 +1698,7 @@ function createTaskCard(task, isListView = false) {
           <button type="button" class="view-btn quick-status-btn" data-status="done" ${task.status === 'done' ? 'style="color: var(--priority-low-hue); font-weight:bold"' : ''} title="Done">D</button>
         </div>
       ` : `
-        <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">
-          ${task.status.replace('-', ' ')}
-        </span>
+        <span class="trs">${rankStrip}</span>
       `}
     </div>
   `;
@@ -1611,6 +1711,14 @@ function createTaskCard(task, isListView = false) {
   card.querySelector('.delete-task-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     deleteTask(task.id);
+  });
+
+  // Pick-rank strip (board/drill cards)
+  card.querySelectorAll('.trs .rk').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setTaskRank(task.id, parseInt(b.dataset.rank, 10));
+    });
   });
 
   // Expandable subtasks checklist click drawer
@@ -1885,6 +1993,7 @@ function setupEventListeners() {
   // --- Mobile view wiring ---
   // Desktop/mobile preview toggle + react to real viewport changes.
   DOM.viewportToggleBtn.addEventListener('click', toggleViewport);
+  if (DOM.sidebarToggleBtn) DOM.sidebarToggleBtn.addEventListener('click', toggleSidebar);
   MOBILE_MQ.addEventListener('change', applyViewport);
 
   // One-tap light/dark theme toggle (top bar, desktop + mobile).
