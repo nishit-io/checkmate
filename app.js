@@ -68,14 +68,34 @@ const DEFAULT_TASKS = [
 ];
 
 const PRESET_COLORS = [
+  // Row 1 — vivid core
   '#6366f1', // Indigo
   '#0891b2', // Cyan
   '#10b981', // Emerald
   '#f59e0b', // Amber
   '#f43f5e', // Rose
-  '#ec4899', // Pink
   '#8b5cf6', // Violet
-  '#64748b'  // Slate
+  // Row 2 — bright/mid
+  '#3b82f6', // Blue
+  '#14b8a6', // Teal
+  '#22c55e', // Green
+  '#eab308', // Yellow
+  '#ec4899', // Pink
+  '#64748b', // Slate
+  // Row 3 — soft pastels (eye-soothing)
+  '#a5b4fc', // Soft indigo
+  '#7dd3fc', // Soft sky
+  '#6ee7b7', // Soft mint
+  '#fcd34d', // Soft amber
+  '#fda4af', // Soft rose
+  '#c4b5fd', // Soft violet
+  // Row 4 — softer pastels
+  '#c7d2fe', // Periwinkle
+  '#bae6fd', // Pale blue
+  '#bbf7d0', // Pale green
+  '#fde68a', // Pale amber
+  '#fbcfe8', // Pale pink
+  '#ddd6fe'  // Pale violet
   ];
 
 // --- Application State ---

@@ -427,11 +427,10 @@ html:not(.mobile-mode) .app-container.sidebar-collapsed {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
-  padding: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  width: 132px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(6, 26px);
+  gap: 8px;
   box-shadow: var(--shadow-md);
 }
 
