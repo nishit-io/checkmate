@@ -1,0 +1,47 @@
+/* Checkmate sketch theme — tokens lifted from the app's style.css so mockups
+   match the real product. Light + dark via [data-theme]. */
+:root {
+  --font-title: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --priority-low-hue: 142;   /* green */
+  --priority-medium-hue: 37; /* amber */
+  --priority-high-hue: 350;  /* rose */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] {
+  --bg-gradient: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  --bg-panel: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f1f5f9;
+  --bg-subtle: #f8fafc;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --primary: #4f46e5;
+  --primary-rgb: 79, 70, 229;
+  --accent-cyan: #0891b2;
+  --accent-purple: #7c3aed;
+}
+
+[data-theme="dark"] {
+  --bg-gradient: linear-gradient(135deg, #090d16 0%, #05070c 100%);
+  --bg-panel: #111927;
+  --bg-card: #172138;
+  --bg-input: #0a0f1c;
+  --bg-subtle: #0d1423;
+  --border-color: rgba(255,255,255,0.08);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --primary: #6366f1;
+  --primary-rgb: 99, 102, 241;
+  --accent-cyan: #22d3ee;
+  --accent-purple: #a78bfa;
+}

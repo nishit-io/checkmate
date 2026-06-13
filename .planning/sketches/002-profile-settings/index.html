@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 002 — Profile & Settings</title>
+<link rel="stylesheet" href="../themes/default.css">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);background:var(--bg-gradient);color:var(--text-primary);min-height:100vh;padding:0}
+  .toolbar{display:flex;gap:8px;align-items:center;font:12px monospace;color:var(--text-secondary);padding:10px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border-color);flex-wrap:wrap}
+  .toolbar button{font:inherit;padding:6px 10px;border-radius:8px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary)}
+  .toolbar button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
+  /* fake top bar */
+  .topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg-panel);border-bottom:1px solid var(--border-color)}
+  .tb-title{font-family:var(--font-title);font-weight:700;font-size:1.05rem;flex:1}
+  .tb-icon{width:40px;height:40px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font-size:1.15rem;cursor:pointer}
+  .tb-add{display:flex;align-items:center;gap:8px;padding:9px 16px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--accent-purple));color:#fff;font-weight:600;cursor:pointer}
+  .tb-avatar{width:40px;height:40px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--primary),var(--accent-purple));color:#fff;font-weight:700;cursor:pointer}
+  .profile-wrap{position:relative}
+  .menu{position:absolute;top:calc(100% + 8px);right:0;z-index:50;min-width:200px;background:var(--bg-panel);border:1px solid var(--border-color);border-radius:12px;box-shadow:var(--shadow-md);padding:6px;display:flex;flex-direction:column}
+  .menu .who{padding:10px 12px;border-bottom:1px solid var(--border-color);margin-bottom:4px}
+  .menu .who b{display:block;font-size:.9rem}
+  .menu .who span{font-size:.75rem;color:var(--text-muted)}
+  .menu button{display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:none;color:var(--text-primary);font-family:var(--font-body);font-size:.88rem;font-weight:500;text-align:left;border-radius:8px;cursor:pointer}
+  .menu button:hover{background:var(--bg-input)}
+  .menu button i{font-size:1.1rem;color:var(--text-secondary)}
+  .menu .danger{color:hsl(var(--priority-high-hue),70%,50%)}
+  .menu .sep{height:1px;background:var(--border-color);margin:4px 0}
+
+  .stage{padding:28px;display:flex;justify-content:center}
+  /* modal */
+  .modal{width:100%;max-width:520px;background:var(--bg-panel);border:1px solid var(--border-color);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);overflow:hidden}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border-color)}
+  .modal-h h2{font-family:var(--font-title);font-size:1.15rem}
+  .modal-h .x{width:34px;height:34px;border:none;background:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;border-radius:50%}
+  .modal-b{padding:22px;max-height:62vh;overflow-y:auto}
+  .modal-f{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border-color)}
+  .btn{padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary)}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+
+  .fg{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+  .fg label{font-size:.8rem;font-weight:600;color:var(--text-secondary)}
+  .fg input,.fg select{padding:11px 14px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-family:var(--font-body);font-size:.9rem}
+  .fg input:disabled{opacity:.7;cursor:not-allowed}
+  .avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+  .avatar-lg{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1.5rem;background:var(--primary)}
+  .color-dots{display:flex;gap:8px}
+  .cdot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+  .cdot.sel{border-color:var(--text-primary)}
+
+  /* settings rows */
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0}
+  .set-row .lab b{display:block;font-size:.9rem}
+  .set-row .lab span{font-size:.76rem;color:var(--text-muted)}
+  .seg{display:flex;background:var(--bg-input);border-radius:8px;padding:3px;border:1px solid var(--border-color)}
+  .seg button{border:none;background:none;padding:6px 12px;border-radius:6px;font-size:.8rem;font-weight:600;color:var(--text-secondary);cursor:pointer}
+  .seg button.on{background:var(--bg-card);color:var(--primary);box-shadow:var(--shadow-sm)}
+  .toggle{width:44px;height:26px;border-radius:999px;background:var(--bg-input);border:1px solid var(--border-color);position:relative;cursor:pointer}
+  .toggle.on{background:var(--primary);border-color:var(--primary)}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .toggle.on::after{left:20px}
+  select.mini{padding:7px 10px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:.82rem}
+  .link-btn{background:none;border:none;color:var(--primary);font-weight:600;font-size:.84rem;cursor:pointer;padding:6px 0}
+  .danger-txt{color:hsl(var(--priority-high-hue),70%,50%)}
+
+  /* variant A: grouped cards */
+  .v-a .set-section{border:1px solid var(--border-color);border-radius:12px;padding:6px 16px;margin-bottom:16px;background:var(--bg-card)}
+  .v-a .set-section h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);padding:12px 0 4px;font-weight:700}
+  .v-a .set-row + .set-row{border-top:1px solid var(--border-color)}
+  /* variant B: flat list */
+  .v-b .set-section{margin-bottom:8px}
+  .v-b .set-section h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);padding:16px 0 2px;font-weight:700;border-bottom:2px solid var(--border-color);margin-bottom:4px}
+  .v-b .set-row{border-bottom:1px solid var(--border-color)}
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>Sketch 002 →</span>
+    <button onclick="show('menu')" id="s-menu" class="on">Profile menu</button>
+    <button onclick="show('profile')" id="s-profile">Profile modal</button>
+    <button onclick="show('settings')" id="s-settings">Settings modal</button>
+    <span style="margin-left:10px">settings layout →</span>
+    <button onclick="setv('a')" id="v-a" class="on">A · cards</button>
+    <button onclick="setv('b')" id="v-b">★ B · flat</button>
+    <span style="margin-left:10px">theme →</span>
+    <button onclick="tt()" id="thb">light</button>
+  </div>
+
+  <!-- Top bar with profile menu -->
+  <div class="topbar">
+    <div class="tb-title">Task Dashboard</div>
+    <button class="tb-icon" title="Mobile preview"><i class="ri-smartphone-line"></i></button>
+    <button class="tb-icon" onclick="tt()" title="Theme"><i class="ri-moon-line" id="thi"></i></button>
+    <button class="tb-add"><i class="ri-add-fill"></i> Add Task</button>
+    <div class="profile-wrap">
+      <button class="tb-avatar" onclick="show('menu')">N</button>
+      <div class="menu" id="menu">
+        <div class="who"><b>Nishit Shah</b><span>nks.luv@gmail.com</span></div>
+        <button onclick="show('profile')"><i class="ri-user-line"></i> Profile</button>
+        <button onclick="show('settings')"><i class="ri-settings-3-line"></i> Settings</button>
+        <div class="sep"></div>
+        <button class="danger"><i class="ri-logout-box-r-line"></i> Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <!-- Profile modal template -->
+  <template id="t-profile">
+    <div class="modal">
+      <div class="modal-h"><h2>Profile</h2><button class="x"><i class="ri-close-line"></i></button></div>
+      <div class="modal-b">
+        <div class="avatar-row">
+          <div class="avatar-lg">N</div>
+          <div>
+            <label style="font-size:.8rem;font-weight:600;color:var(--text-secondary)">Avatar colour</label>
+            <div class="color-dots">
+              <span class="cdot sel" style="background:#6366f1"></span>
+              <span class="cdot" style="background:#ec4899"></span>
+              <span class="cdot" style="background:#10b981"></span>
+              <span class="cdot" style="background:#f59e0b"></span>
+              <span class="cdot" style="background:#06b6d4"></span>
+            </div>
+          </div>
+        </div>
+        <div class="fg"><label>Display name</label><input type="text" value="Nishit Shah"></div>
+        <div class="fg"><label>Email</label><input type="email" value="nks.luv@gmail.com" disabled></div>
+        <div class="fg"><label>Timezone</label><select><option>(GMT+05:30) India Standard Time</option><option>(GMT+00:00) UTC</option><option>(GMT-08:00) Pacific</option></select></div>
+      </div>
+      <div class="modal-f"><button class="btn">Cancel</button><button class="btn primary">Save profile</button></div>
+    </div>
+  </template>
+
+  <!-- Settings modal template -->
+  <template id="t-settings">
+    <div class="modal" id="settings-modal">
+      <div class="modal-h"><h2>Settings</h2><button class="x"><i class="ri-close-line"></i></button></div>
+      <div class="modal-b">
+        <div class="set-section">
+          <h3>Preferences</h3>
+          <div class="set-row"><div class="lab"><b>Theme</b><span>Light, dark, or follow system</span></div><div class="seg"><button class="on">Light</button><button>Dark</button><button>System</button></div></div>
+          <div class="set-row"><div class="lab"><b>Default view</b><span>What opens on launch</span></div><div class="seg"><button class="on">Board</button><button>List</button></div></div>
+          <div class="set-row"><div class="lab"><b>Default priority</b><span>For new tasks</span></div><select class="mini"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+        </div>
+        <div class="set-section">
+          <h3>Display</h3>
+          <div class="set-row"><div class="lab"><b>Week starts on</b></div><div class="seg"><button class="on">Sun</button><button>Mon</button></div></div>
+          <div class="set-row"><div class="lab"><b>Date format</b></div><div class="seg"><button class="on">MM/DD</button><button>DD/MM</button></div></div>
+          <div class="set-row"><div class="lab"><b>Density</b><span>Card spacing</span></div><div class="seg"><button class="on">Comfortable</button><button>Compact</button></div></div>
+        </div>
+        <div class="set-section">
+          <h3>Behavior</h3>
+          <div class="set-row"><div class="lab"><b>Confirm before delete</b></div><div class="toggle on"></div></div>
+          <div class="set-row"><div class="lab"><b>Show completed tasks</b></div><div class="toggle on"></div></div>
+        </div>
+        <div class="set-section">
+          <h3>Account &amp; data</h3>
+          <div class="set-row"><div class="lab"><b>Change password</b><span>Sends a reset email</span></div><button class="link-btn">Send link</button></div>
+          <div class="set-row"><div class="lab"><b>Your data</b><span>Tasks &amp; categories</span></div><div><button class="link-btn">Export</button> · <button class="link-btn">Import</button></div></div>
+          <div class="set-row"><div class="lab"><b>Sign out</b></div><button class="link-btn">Sign out</button></div>
+          <div class="set-row"><div class="lab"><b class="danger-txt">Delete account</b><span>Coming soon</span></div><button class="link-btn danger-txt" disabled style="opacity:.5">Delete</button></div>
+        </div>
+      </div>
+      <div class="modal-f"><button class="btn primary">Done</button></div>
+    </div>
+  </template>
+
+<script>
+  let variant='a';
+  function setv(v){variant=v;['a','b'].forEach(x=>document.getElementById('v-'+x).classList.toggle('on',x===v));render();}
+  function tt(){const b=document.body,d=b.getAttribute('data-theme')==='dark';b.setAttribute('data-theme',d?'light':'dark');document.getElementById('thb').textContent=d?'light':'dark';document.getElementById('thi').className=d?'ri-moon-line':'ri-sun-line';}
+  let current='menu';
+  function show(w){current=w;['menu','profile','settings'].forEach(x=>document.getElementById('s-'+x).classList.toggle('on',x===w));render();}
+  function render(){
+    document.getElementById('menu').style.display = current==='menu' ? 'flex' : 'none';
+    const stage=document.getElementById('stage');stage.innerHTML='';
+    if(current==='profile'){stage.appendChild(document.getElementById('t-profile').content.cloneNode(true));}
+    if(current==='settings'){const n=document.getElementById('t-settings').content.cloneNode(true);n.querySelector('.modal-b').classList.add('v-'+variant);stage.appendChild(n);}
+  }
+  const q=new URLSearchParams(location.search);
+  if(q.get('t')==='dark')tt();
+  if(q.get('v'))setv(q.get('v'));
+  show(q.get('show')||'menu');
+</script>
+</body>
+</html>

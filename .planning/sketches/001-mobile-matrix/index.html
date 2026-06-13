@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 001 — Mobile Matrix Grid</title>
+<link rel="stylesheet" href="../themes/default.css">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body, sans-serif);
+    background: #0b0e14;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 14px;
+  }
+  /* Sketch toolbar */
+  .toolbar { display: flex; gap: 8px; align-items: center; font: 12px monospace; color: #9aa4b2; }
+  .toolbar button {
+    font: inherit; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #2a2f3a; background: #161a22; color: #cdd5e0;
+  }
+  .toolbar button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  /* Centered ~400px mobile column, dimmed backdrop, subtle border (no bezel) */
+  .phone {
+    width: 400px;
+    height: 820px;
+    max-height: calc(100vh - 90px);
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top bar */
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .brand { display: flex; align-items: center; gap: 8px; flex: 1; }
+  .brand .logo {
+    width: 30px; height: 30px; border-radius: 8px; color: #fff; font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand h1 { font-family: var(--font-title); font-size: 1.05rem; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-color);
+    background: var(--bg-input); color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; border: none; color: #fff; font-weight: 700; cursor: pointer;
+    background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  }
+
+  /* Category chips */
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px; border-bottom: 1px solid var(--border-color); }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; min-height: 36px; padding: 7px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);
+    font-weight: 600; font-size: 0.8rem; white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Body */
+  .body { flex: 1; overflow-y: auto; padding: 16px; }
+  .section-title { font-family: var(--font-title); font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .section-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
+
+  /* ===== Matrix grid (shared structure; tile look varies by variant) ===== */
+  .matrix { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 8px; }
+  .col-head, .corner { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); text-align: center; align-self: center; padding-bottom: 2px; }
+  .row-head { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; padding-right: 4px; }
+  .row-head .rl { font-family: var(--font-title); font-weight: 700; font-size: 0.8rem; }
+  .cell {
+    position: relative; cursor: pointer; border-radius: var(--radius-md);
+    min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: transform .12s ease;
+  }
+  .cell:active { transform: scale(0.97); }
+  .cell .count { font-family: var(--font-title); font-weight: 800; font-size: 1.5rem; line-height: 1; }
+  .cell .clabel { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .cell.empty { opacity: 0.4; }
+
+  .high  { --hue: var(--priority-high-hue); }
+  .medium{ --hue: var(--priority-medium-hue); }
+  .low   { --hue: var(--priority-low-hue); }
+  .row-head.high .rl   { color: hsl(var(--priority-high-hue), 70%, 55%); }
+  .row-head.medium .rl { color: hsl(var(--priority-medium-hue), 80%, 45%); }
+  .row-head.low .rl    { color: hsl(var(--priority-low-hue), 60%, 42%); }
+
+  /* Variant A — bold color-block tiles */
+  .phone.v-a .cell { background: hsla(var(--hue), 75%, 55%, 0.14); border: 1px solid hsla(var(--hue), 70%, 50%, 0.35); }
+  .phone.v-a .cell .count { color: hsl(var(--hue), 70%, 45%); }
+  [data-theme="dark"] .phone.v-a .cell .count { color: hsl(var(--hue), 80%, 68%); }
+
+  /* Variant B — minimal white tiles with top accent bar */
+  .phone.v-b .cell { background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); padding-top: 6px; overflow: hidden; }
+  .phone.v-b .cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: hsl(var(--hue), 70%, 52%); }
+  .phone.v-b .cell .count { color: var(--text-primary); }
+
+  /* Variant C — compact dot + count */
+  .phone.v-c .matrix { gap: 6px; }
+  .phone.v-c .cell { min-height: 52px; background: var(--bg-card); border: 1px solid var(--border-color); flex-direction: row; gap: 7px; }
+  .phone.v-c .cell .pdot { width: 9px; height: 9px; border-radius: 50%; background: hsl(var(--hue), 70%, 52%); }
+  .phone.v-c .cell .count { font-size: 1.15rem; }
+  .phone.v-c .cell .clabel { display: none; }
+
+  /* Bottom nav */
+  .botnav {
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 8px 0 12px; background: var(--bg-panel); border-top: 1px solid var(--border-color);
+  }
+  .nav-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-family: var(--font-body); font-weight: 600; font-size: 0.64rem; display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .nav-btn i { font-size: 1.3rem; }
+  .nav-btn.active { color: var(--primary); }
+  .nav-add { flex: 0 0 auto !important; width: 54px; height: 54px; border-radius: 50%; background: var(--primary); color: #fff !important; display: flex; align-items: center; justify-content: center; gap: 0; }
+  .nav-add i { font-size: 1.6rem; line-height: 1; display: block; }
+
+  /* Drill-in full-screen panel */
+  .drill {
+    position: absolute; inset: 0; z-index: 10; background: var(--bg-gradient);
+    display: flex; flex-direction: column; transform: translateX(100%); transition: transform .25s ease;
+  }
+  .drill.open { transform: translateX(0); }
+  .drill-head { display: flex; align-items: center; gap: 10px; padding: 16px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); }
+  .drill-head .back { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
+  .drill-head .dt { font-family: var(--font-title); font-weight: 700; }
+  .drill-head .dt small { display: block; font-weight: 600; font-size: 0.7rem; color: var(--text-muted); }
+  .drill-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .task { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; }
+  .task .tt { font-weight: 600; }
+  .task .tm { font-size: 0.74rem; color: var(--text-muted); margin-top: 3px; }
+  .add-row { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); color: var(--primary); font-weight: 600; cursor: pointer; background: none; }
+
+  /* Quick-add sheet */
+  .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--bg-panel);
+    border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + 8px); transform: translateY(110%); transition: transform .25s ease;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.3);
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet h3 { font-family: var(--font-title); font-size: 1rem; margin-bottom: 12px; }
+  .sheet input[type=text] { width: 100%; min-height: 48px; padding: 12px 14px; font-size: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); }
+  .sheet .more { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-weight: 600; font-size: 0.82rem; margin: 12px 2px; cursor: pointer; }
+  .sheet .save { width: 100%; min-height: 48px; border: none; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+  .label { display:flex; gap: 8px; }
+  .label span { font-size: 0.7rem; background: var(--bg-input); padding: 6px 10px; border-radius: var(--radius-pill); color: var(--text-secondary); }
+</style>
+</head>
+<body data-theme="light">
+
+  <div class="toolbar">
+    <span>Sketch 001 · matrix grid →</span>
+    <button onclick="setVar('a')" id="tab-a" class="on">A · color-block</button>
+    <button onclick="setVar('b')" id="tab-b">★ B · minimal accent</button>
+    <button onclick="setVar('c')" id="tab-c">C · compact dot</button>
+    <span style="margin-left:12px">theme →</span>
+    <button onclick="toggleTheme()" id="thbtn">light</button>
+  </div>
+
+  <div class="phone v-a" id="phone">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="brand"><div class="logo">♔</div><h1>Checkmate</h1></div>
+      <button class="icon-btn" onclick="toggleTheme()" title="theme"><i class="ri-moon-line" id="thicon"></i></button>
+      <button class="icon-btn" title="desktop/mobile toggle"><i class="ri-computer-line"></i></button>
+      <button class="avatar">N</button>
+    </div>
+
+    <!-- Category chips -->
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip"><span class="dot" style="background:#6366f1"></span>Work</div>
+      <div class="chip"><span class="dot" style="background:#ec4899"></span>Personal</div>
+      <div class="chip"><span class="dot" style="background:#10b981"></span>Shopping</div>
+    </div>
+
+    <!-- Body: matrix grid -->
+    <div class="body">
+      <div class="section-title">Task Board</div>
+      <div class="section-sub">Tap a cell to see its tasks</div>
+      <div class="matrix">
+        <div class="corner">Pri / Status</div>
+        <div class="col-head">To Do</div>
+        <div class="col-head">In Prog</div>
+        <div class="col-head">Done</div>
+
+        <div class="row-head high"><span class="rl">High</span></div>
+        <div class="cell high" onclick="openDrill('High','To Do')"><span class="pdot"></span><span class="count">2</span><span class="clabel">To Do</span></div>
+        <div class="cell high" onclick="openDrill('High','In Progress')"><span class="pdot"></span><span class="count">1</span><span class="clabel">In Prog</span></div>
+        <div class="cell high empty"><span class="pdot"></span><span class="count">0</span><span class="clabel">Done</span></div>
+
+        <div class="row-head medium"><span class="rl">Med</span></div>
+        <div class="cell medium" onclick="openDrill('Medium','To Do')"><span class="pdot"></span><span class="count">3</span><span class="clabel">To Do</span></div>
+        <div class="cell medium empty"><span class="pdot"></span><span class="count">0</span><span class="clabel">In Prog</span></div>
+        <div class="cell medium" onclick="openDrill('Medium','Done')"><span class="pdot"></span><span class="count">1</span><span class="clabel">Done</span></div>
+
+        <div class="row-head low"><span class="rl">Low</span></div>
+        <div class="cell low" onclick="openDrill('Low','To Do')"><span class="pdot"></span><span class="count">1</span><span class="clabel">To Do</span></div>
+        <div class="cell low empty"><span class="pdot"></span><span class="count">0</span><span class="clabel">In Prog</span></div>
+        <div class="cell low" onclick="openDrill('Low','Done')"><span class="pdot"></span><span class="count">4</span><span class="clabel">Done</span></div>
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="botnav">
+      <button class="nav-btn active"><i class="ri-grid-fill"></i>Board</button>
+      <button class="nav-btn nav-add" onclick="openSheet()"><i class="ri-add-fill"></i></button>
+      <button class="nav-btn"><i class="ri-align-justify"></i>List</button>
+    </div>
+
+    <!-- Drill-in panel -->
+    <div class="drill" id="drill">
+      <div class="drill-head">
+        <button class="back" onclick="closeDrill()"><i class="ri-arrow-left-line"></i></button>
+        <div class="dt" id="drill-title">Medium · To Do<small id="drill-sub">3 tasks</small></div>
+      </div>
+      <div class="drill-body">
+        <button class="add-row" onclick="openSheet()"><i class="ri-add-line"></i> Add to <span id="addctx">this cell</span></button>
+        <div class="task"><div class="tt">Write API docs</div><div class="tm">Due tomorrow · 2 subtasks</div></div>
+        <div class="task"><div class="tt">Fix login redirect</div><div class="tm">No due date</div></div>
+        <div class="task"><div class="tt">Email the client</div><div class="tm">Due Fri</div></div>
+      </div>
+    </div>
+
+    <!-- Quick-add sheet -->
+    <div class="scrim" id="scrim" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+      <h3>New task</h3>
+      <input type="text" placeholder="What needs to be done?">
+      <div class="label" style="margin-top:10px"><span>To Do</span><span>Medium</span><span>Work</span></div>
+      <div class="more"><i class="ri-arrow-down-s-line"></i> More options</div>
+      <button class="save" onclick="closeSheet()">Save task</button>
+    </div>
+  </div>
+
+<script>
+  function setVar(v){
+    const p = document.getElementById('phone');
+    p.className = 'phone v-' + v;
+    ['a','b','c'].forEach(x => document.getElementById('tab-'+x).classList.toggle('on', x===v));
+  }
+  function toggleTheme(){
+    const b = document.body, dark = b.getAttribute('data-theme')==='dark';
+    b.setAttribute('data-theme', dark ? 'light' : 'dark');
+    document.getElementById('thbtn').textContent = dark ? 'light' : 'dark';
+    document.getElementById('thicon').className = dark ? 'ri-moon-line' : 'ri-sun-line';
+  }
+  function openDrill(pri,stat){
+    document.getElementById('drill-title').childNodes[0].nodeValue = pri + ' · ' + stat;
+    document.getElementById('drill-sub').textContent = 'tasks';
+    document.getElementById('addctx').textContent = pri + ' · ' + stat;
+    document.getElementById('drill').classList.add('open');
+  }
+  function closeDrill(){ document.getElementById('drill').classList.remove('open'); }
+  function openSheet(){ document.getElementById('sheet').classList.add('open'); document.getElementById('scrim').classList.add('open'); }
+  function closeSheet(){ document.getElementById('sheet').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+  // Allow headless capture of each state via ?v=a|b|c&t=light|dark&drill=1&sheet=1
+  (function(){
+    const q = new URLSearchParams(location.search);
+    if (q.get('v')) setVar(q.get('v'));
+    if (q.get('t') === 'dark') toggleTheme();
+    if (q.get('drill')) openDrill('Medium','To Do');
+    if (q.get('sheet')) openSheet();
+  })();
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ Order: **Supabase → config.js → GitHub → Vercel → Google OAuth → redir
 ## 2. Run the schema
 
 1. In the project: **SQL Editor → New query**.
-2. Open [`supabase/schema.sql`](supabase/schema.sql), copy the whole file, paste, **Run**.
+2. Open [`supabase/schema.sql`](../supabase/schema.sql), copy the whole file, paste, **Run**.
 3. You should see "Success". This creates the `tasks` + `categories` tables,
    Row Level Security, the new-user default-category seeding, and realtime.
 
@@ -25,7 +25,7 @@ Order: **Supabase → config.js → GitHub → Vercel → Google OAuth → redir
 
 1. **Project Settings → API**.
 2. Copy **Project URL** and the **anon / public** key.
-3. Open [`config.js`](config.js) and replace the placeholders:
+3. Open [`config.js`](../config.js) and replace the placeholders:
    ```js
    window.CHECKMATE_CONFIG = {
      SUPABASE_URL: 'https://xxxxxxxx.supabase.co',

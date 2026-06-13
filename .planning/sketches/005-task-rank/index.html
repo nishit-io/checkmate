@@ -1,0 +1,86 @@
+<!DOCTYPE html><html data-theme="light"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+<link rel="stylesheet" href="../../../style.css">
+<style>
+  html,body{display:block!important;height:auto!important;overflow:visible!important;margin:0;padding:24px;background:var(--bg-app)}
+  h2{font-family:var(--font-title)}
+  .vlabel{font-family:var(--font-title);font-weight:700;margin:22px 0 6px;font-size:1.05rem}
+  .vnote{color:var(--text-muted);font-size:.85rem;margin-bottom:12px;max-width:900px}
+  .cols{display:grid;grid-template-columns:340px 340px;gap:28px}
+  .cell{background:rgba(var(--primary-rgb),.02);border:1px solid var(--border-color);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .cell-cap{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--text-muted)}
+
+  /* shared rank button look */
+  .trs{display:flex;gap:3px;align-items:center}
+  .trs .rk{height:22px;min-width:22px;padding:0 4px;border:1px solid var(--border-color);background:var(--bg-input);border-radius:6px;
+    font-size:.72rem;font-weight:700;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .trs .rk.zero{color:var(--text-muted)}
+  .trs .rk.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+  /* Variant A: strip in footer */
+  .a .card-footer{gap:8px;flex-wrap:wrap}
+  .a .task-card.ranked{box-shadow:inset 3px 0 0 var(--primary)}
+  .a .rank-corner{position:absolute;top:-8px;left:-8px;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
+    font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md);z-index:3}
+  .a .task-card{position:relative;overflow:visible}
+
+  /* Variant B: top tab strip + left number rail */
+  .b .task-card{position:relative;overflow:visible;padding-left:14px}
+  .b .rank-rail{position:absolute;left:0;top:0;bottom:0;width:30px;border-radius:12px 0 0 12px;display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:1.1rem;color:#fff;background:var(--primary)}
+  .b .task-card:not(.ranked) .rank-rail{background:var(--border-color);color:var(--text-muted)}
+  .b .task-card.ranked{padding-left:40px}
+  .b .top-strip{display:flex;gap:3px;margin:-4px -4px 8px;padding-bottom:8px;border-bottom:1px solid var(--border-color)}
+  .b .top-strip .rk{flex:1}
+</style></head>
+<body>
+<h2>Sketch 005 — Task Pick-Rank (per card, scoped to its cell)</h2>
+<p class="vnote">Each card carries a 0–4 strip (1 = do first … 4; – = clear). Numbers unique within the cell; ranked cards sort to the top (1→4), then unranked by due date. Shown: one cell (High · Backlog) with 4 ranked + 2 unranked cards.</p>
+
+<!-- VARIANT A -->
+<div class="vlabel">Variant A — strip in the card footer + corner number</div>
+<div class="vnote">The 0–4 strip lives in the footer beside the due-date (where the status text used to be). Ranked cards get a left-edge accent + a round corner number. Compact, doesn't add height.</div>
+<div class="cols"><div class="cell a">
+  <div class="cell-cap">High · Backlog</div>
+  <div id="acards"></div>
+</div></div>
+
+<!-- VARIANT B -->
+<div class="vlabel">Variant B — top strip + left number rail</div>
+<div class="vnote">A thin 0–4 strip sits at the top of the card; ranked cards show a bold number on a colored left rail (big, scannable). More prominent, costs a little card height/width.</div>
+<div class="cols"><div class="cell b">
+  <div class="cell-cap">High · Backlog</div>
+  <div id="bcards"></div>
+</div></div>
+
+<script>
+const data=[
+ {t:"Apply DICE Jobs",rank:1,due:"Jun 9"},
+ {t:"Prepare Interview Slides",rank:2,due:"Jun 9"},
+ {t:"NVIDIA Jobs",rank:3,due:"No due date"},
+ {t:"Anthropic Jobs",rank:4,due:"No due date"},
+ {t:"ATT Jobs",rank:0,due:"Jun 10"},
+ {t:"Meta Jobs",rank:0,due:"No due date"},
+];
+function strip(rank){let b='';for(let n=0;n<=4;n++){b+=`<button class="rk${n===rank&&n>0?' active':''}${n===0?' zero':''}">${n===0?'–':n}</button>`;}return b;}
+// Variant A
+document.getElementById('acards').innerHTML = data.map(d=>`
+ <div class="task-card${d.rank>0?' ranked':''}" style="margin-bottom:12px">
+   ${d.rank>0?`<div class="rank-corner">${d.rank}</div>`:''}
+   <div class="card-header"><span class="priority-badge priority-high">HIGH</span>
+     <div class="card-actions"><button class="card-btn"><i class="ri-edit-2-line"></i></button><button class="card-btn"><i class="ri-delete-bin-6-line"></i></button></div></div>
+   <div class="card-body"><h4 class="card-title">${d.t}</h4></div>
+   <div class="card-footer"><span class="card-due"><i class="ri-calendar-event-line"></i><span>${d.due}</span></span>
+     <span class="trs">${strip(d.rank)}</span></div>
+ </div>`).join('');
+// Variant B
+document.getElementById('bcards').innerHTML = data.map(d=>`
+ <div class="task-card${d.rank>0?' ranked':''}" style="margin-bottom:12px">
+   <div class="rank-rail">${d.rank>0?d.rank:'–'}</div>
+   <div class="top-strip trs">${strip(d.rank)}</div>
+   <div class="card-header"><span class="priority-badge priority-high">HIGH</span>
+     <div class="card-actions"><button class="card-btn"><i class="ri-edit-2-line"></i></button><button class="card-btn"><i class="ri-delete-bin-6-line"></i></button></div></div>
+   <div class="card-body"><h4 class="card-title">${d.t}</h4></div>
+   <div class="card-footer"><span class="card-due"><i class="ri-calendar-event-line"></i><span>${d.due}</span></span></div>
+ </div>`).join('');
+</script></body></html>

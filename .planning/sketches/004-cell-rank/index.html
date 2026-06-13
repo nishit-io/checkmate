@@ -1,0 +1,92 @@
+<!DOCTYPE html><html data-theme="light"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+<link rel="stylesheet" href="../../../style.css">
+<style>
+  html,body{display:block!important;height:auto!important;overflow:visible!important;padding:0;margin:0}
+  body{padding:24px;background:var(--bg-app)}
+  h2{font-family:var(--font-title)}
+  .vlabel{font-family:var(--font-title);font-weight:700;margin:22px 0 6px;font-size:1.1rem;display:block}
+  .vnote{color:var(--text-muted);font-size:.85rem;margin-bottom:12px;max-width:900px;display:block}
+  .demo-grid{display:grid;grid-template-columns:repeat(3,300px);gap:20px;margin-bottom:10px}
+  .demo-grid .matrix-cell{min-height:200px;overflow:visible!important}
+
+  /* ===== Variant A: top strip + corner badge ===== */
+  .a .rank-strip{display:flex;gap:4px;align-items:center;margin:-2px -2px 8px;padding-bottom:8px;border-bottom:1px solid var(--border-color)}
+  .a .rank-strip .rk{flex:1;height:26px;border:1px solid var(--border-color);background:var(--bg-input);border-radius:7px;
+    font-size:.8rem;font-weight:700;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .a .rank-strip .rk.zero{flex:0 0 26px;color:var(--text-muted)}
+  .a .rank-strip .rk.active{background:var(--primary);border-color:var(--primary);color:#fff}
+  .a .matrix-cell.ranked{border-top:3px solid var(--primary)}
+  .a .rank-badge{position:absolute;top:-10px;right:-10px;width:30px;height:30px;border-radius:50%;
+    background:var(--primary);color:#fff;font-weight:800;font-size:.95rem;display:flex;align-items:center;justify-content:center;
+    box-shadow:var(--shadow-md);z-index:3}
+  .a .matrix-cell{position:relative}
+
+  /* ===== Variant B: corner chip (click to open) + number watermark ===== */
+  .b .matrix-cell{position:relative}
+  .b .rank-chip{position:absolute;top:8px;right:8px;min-width:46px;height:24px;padding:0 8px;border-radius:999px;
+    border:1px dashed var(--border-color);background:var(--bg-input);color:var(--text-muted);
+    font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;z-index:3}
+  .b .matrix-cell.ranked .rank-chip{border-style:solid;border-color:var(--primary);background:var(--primary);color:#fff}
+  .b .matrix-cell.ranked{box-shadow:inset 0 0 0 2px var(--primary)}
+  .b .rank-water{position:absolute;left:10px;bottom:4px;font-size:5rem;font-weight:900;line-height:1;
+    color:rgba(var(--primary-rgb),.08);z-index:0;pointer-events:none}
+  .b .rank-pop{position:absolute;top:38px;right:8px;display:flex;gap:4px;background:var(--bg-panel);
+    border:1px solid var(--border-color);border-radius:10px;padding:5px;box-shadow:var(--shadow-md);z-index:4}
+  .b .rank-pop .rk{width:28px;height:28px;border:1px solid var(--border-color);background:var(--bg-input);border-radius:7px;
+    font-size:.8rem;font-weight:700;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .b .rank-pop .rk.active{background:var(--primary);border-color:var(--primary);color:#fff}
+  .demo-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:10px;padding:12px;position:relative;z-index:1}
+  .demo-card h4{font-size:.9rem}
+  .cell-head{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}
+</style></head>
+<body>
+<h2 style="font-family:var(--font-title)">Sketch 004 — Cell Pick-Rank (desktop)</h2>
+
+<!-- VARIANT A -->
+<div class="vlabel">Variant A — top strip + corner badge</div>
+<div class="vnote">Each cell carries a 0–4 strip across the top (0 = clear). The active rank fills; a circular badge sits on the corner and the cell gets a colored top border. Strip always visible — fastest to retag as the day goes.</div>
+<div class="demo-grid a">
+  <div class="matrix-cell ranked">
+    <div class="rank-badge">1</div>
+    <div class="rank-strip"><button class="rk zero">0</button><button class="rk active">1</button><button class="rk">2</button><button class="rk">3</button><button class="rk">4</button></div>
+    <div class="cell-head">High · Backlog</div>
+    <div class="demo-card"><h4>Apply DICE Jobs</h4></div>
+  </div>
+  <div class="matrix-cell ranked">
+    <div class="rank-badge">2</div>
+    <div class="rank-strip"><button class="rk zero">0</button><button class="rk">1</button><button class="rk active">2</button><button class="rk">3</button><button class="rk">4</button></div>
+    <div class="cell-head">High · To Do</div>
+    <div class="demo-card"><h4>Prep slides</h4></div>
+  </div>
+  <div class="matrix-cell">
+    <div class="rank-strip"><button class="rk zero">0</button><button class="rk">1</button><button class="rk">2</button><button class="rk">3</button><button class="rk">4</button></div>
+    <div class="cell-head">High · In Progress</div>
+    <div class="demo-card"><h4>NJ Unemployment</h4></div>
+  </div>
+</div>
+
+<!-- VARIANT B -->
+<div class="vlabel">Variant B — corner chip (click-to-open) + number watermark</div>
+<div class="vnote">Cell shows only a small rank chip in the corner (dashed when unranked). Click it to open a 0–4 picker. Ranked cells get an inset ring + a faint giant number watermark, readable at a glance. Less chrome; strip hidden until needed.</div>
+<div class="demo-grid b">
+  <div class="matrix-cell ranked">
+    <div class="rank-chip"><i class="ri-flag-2-fill"></i>1</div>
+    <div class="rank-water">1</div>
+    <div class="cell-head">High · Backlog</div>
+    <div class="demo-card"><h4>Apply DICE Jobs</h4></div>
+  </div>
+  <div class="matrix-cell ranked">
+    <div class="rank-chip"><i class="ri-flag-2-fill"></i>2</div>
+    <div class="rank-water">2</div>
+    <div class="rank-pop"><button class="rk">0</button><button class="rk">1</button><button class="rk active">2</button><button class="rk">3</button><button class="rk">4</button></div>
+    <div class="cell-head">High · To Do</div>
+    <div class="demo-card"><h4>Prep slides</h4></div>
+  </div>
+  <div class="matrix-cell">
+    <div class="rank-chip">Rank</div>
+    <div class="cell-head">High · In Progress</div>
+    <div class="demo-card"><h4>NJ Unemployment</h4></div>
+  </div>
+</div>
+</body></html>
